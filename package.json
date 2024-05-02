@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup ./src/index.ts --format esm,cjs --dts"
+    "build": "tsup ./src/index.ts --format esm,cjs --dts",
+    "test": "vitest"
   },
   "repository": "https://github.com/fumieval/evp-ts",
   "author": "Fumiaki Kinoshita",
