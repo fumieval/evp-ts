@@ -28,11 +28,14 @@ const parser = EVP.object({
     mysql: EVP.object({
         host: EVP.string('MYSQL_HOST').default('localhost'),
         port: EVP.string('MYSQL_PORT').default('3306'),
-        user: EVP.string('MYSQL_USER').default('root'),
     }),
 });
 
-console.log(parser.exec());
+type Config = EVP.infer<typeof parser>;
+
+const result: Config = parser.exec();
+
+console.log(result);
 ```
 
 ```
@@ -42,7 +45,6 @@ Environment variable found: HTTP_PORT=3000
 Using the default: DEBUG_MODE=false
 Using the default: MYSQL_HOST=localhost
 Using the default: MYSQL_PORT=3306
-Using the default: MYSQL_USER=root
 {
   API_ENDPOINT: 'https://api.example.com',
   API_TOKEN: '00000000-0000-0000-0000-000000000000',

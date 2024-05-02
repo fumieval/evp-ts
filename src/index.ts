@@ -1,10 +1,6 @@
-import { Variable, ObjectParser, ParsersOf } from './mod';
+import * as EVP from './api';
+export * from './api';
 
-export const EVP = {
-    object<T>(fields: ParsersOf<T>): ObjectParser<T> {
-        return new ObjectParser(fields);
-    },
-    string: Variable.string,
-    decimal: Variable.decimal,
-    boolean: Variable.boolean,
-};
+export { EVP };
+
+export default EVP;

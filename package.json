@@ -5,15 +5,13 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup ./src/index.ts --format esm,cjs --dts",
-    "example": "cat README.md | yarn run --silent codedown typescript | env $(cat .env) ts-node"
+    "build": "tsup ./src/index.ts --format esm,cjs --dts"
   },
   "repository": "https://github.com/fumieval/evp-ts",
   "author": "Fumiaki Kinoshita",
   "license": "MIT",
   "devDependencies": {
-    "codedown": "3.1.0",
-    "evp-ts": "./.",
-    "tsup": "8.0.2"
+    "tsup": "8.0.2",
+    "vitest": "1.5.3"
   }
 }

@@ -69,48 +69,6 @@ export class Variable<T> implements Parsable<T> {
     public default(defaultValue: T): Variable<T> {
         return new Variable({ ...this.params, defaultValue });
     }
-    public static string(name?: string) {
-        return new Variable({
-            name,
-            isSecret: false,
-            parser: (value: string) => value,
-            defaultValue: undefined,
-        });
-    }
-    public static decimal(name?: string) {
-        return new Variable({
-            name,
-            isSecret: false,
-            parser(value: string) {
-                if (!/^\d+$/.test(value)) {
-                    throw new Error(`invalid decimal`);
-                }
-                return parseInt(value);
-            },
-            defaultValue: undefined,
-        });
-    }
-    public static boolean(name?: string) {
-        return new Variable({
-            name,
-            isSecret: false,
-            parser: (value: string) => {
-                switch (value.toLowerCase()) {
-                    case 'true':
-                    case 'yes':
-                    case 'on':
-                        return true;
-                    case 'false':
-                    case 'no':
-                    case 'off':
-                        return false;
-                    default:
-                        throw new Error(`Invalid boolean value: ${value}`);
-                }
-            },
-            defaultValue: undefined,
-        });
-    }
 }
 
 // ParsersOf<T> is a record where each value is a Parsable<T[key]> for each key in T
@@ -119,6 +77,7 @@ export type ParsersOf<T> = {
 };
 
 export class ObjectParser<T> implements Parsable<T> {
+    readonly _T!: T;
     public constructor(public fields: ParsersOf<T>) {}
     public parse(ctx: Context, _key: string): T | undefined {
         const result = fromPartial(this.run(ctx));
