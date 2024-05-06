@@ -7,15 +7,15 @@ export interface ILogger {
 
 export class ConsoleLogger implements ILogger {
     public present(key: string, value: string): void {
-        console.info(`Environment variable found: ${key}=${value}`);
+        console.info(`[EVP] ${key}=${value}`);
     }
     public useDefault(key: string, value: string): void {
-        console.info(`Using the default: ${key}=${value}`);
+        console.info(`[EVP] ${key}=${value} (default)`);
     }
     public missing(key: string): void {
-        console.error(`Missing environment variable: ${key}`);
+        console.error(`[EVP] ${key} is missing`);
     }
     public error(key: string, value: string, error: Error): void {
-        console.error(`Error parsing environment variable: ${key}=${value} (${error.message})`);
+        console.error(`[EVP] ${key}=${value} ERROR: ${error.message}`);
     }
 }
