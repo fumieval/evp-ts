@@ -6,13 +6,18 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsup ./src/index.ts --format esm,cjs --dts",
-    "test": "vitest"
+    "test": "vitest",
+    "example": "cat README.md | yarn run --silent codedown typescript | sed \"s/'evp-ts'/'.'/\" > dist/example.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/example.ts"
   },
   "repository": "https://github.com/fumieval/evp-ts",
   "author": "Fumiaki Kinoshita",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^20.12.8",
+    "codedown": "^3.1.0",
     "tsup": "8.0.2",
+    "typescript": "^5.4.5",
     "vitest": "1.5.3"
-  }
+  },
+  "dependencies": {}
 }
