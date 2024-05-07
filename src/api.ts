@@ -1,6 +1,6 @@
 import { ObjectParser, Variable, ParsersOf } from './mod';
 
-export type infer<T extends ObjectParser<any>> = T['_T'];
+export type infer<T extends ObjectParser<unknown>> = T['_T'];
 
 export function string(name?: string): Variable<string> {
     return new Variable({
@@ -8,7 +8,7 @@ export function string(name?: string): Variable<string> {
         isSecret: false,
         parser: (value: string) => value,
         defaultValue: undefined,
-        metavar: 'string',
+        metavar: (def?: string) => def ?? '<string>',
     });
 }
 
@@ -23,7 +23,7 @@ export function decimal(name?: string): Variable<number> {
             return parseInt(value);
         },
         defaultValue: undefined,
-        metavar: 'decimal',
+        metavar: (def?: number) => def === undefined ? '<decimal>' : def.toString(),
     });
 }
 
@@ -46,7 +46,7 @@ export function boolean(name?: string): Variable<boolean> {
             }
         },
         defaultValue: undefined,
-        metavar: 'boolean',
+        metavar: (def?: boolean) => def === undefined ? 'boolean' : def.toString(),
     });
 }
 export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {

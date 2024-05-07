@@ -21,7 +21,7 @@ export class Variable<T> implements Parsable<T> {
     public defaultValue?: T;
     public parser: (value: string) => T;
     public _description?: string;
-    public _metavar?: string;
+    public _metavar: (defaultValue?: T) => string;
     public constructor(
         public params: {
             name?: string;
@@ -29,7 +29,7 @@ export class Variable<T> implements Parsable<T> {
             defaultValue?: T;
             parser: (value: string) => T;
             description?: string;
-            metavar?: string;
+            metavar?: (defaultValue?: T) => string;
         },
     ) {
         this.name = params.name;
@@ -37,7 +37,7 @@ export class Variable<T> implements Parsable<T> {
         this.defaultValue = params.defaultValue;
         this.parser = params.parser;
         this._description = params.description;
-        this._metavar = params.metavar;
+        this._metavar = params.metavar ?? (() => '<value>');
     }
     public parse(ctx: Context, key: string): T | undefined {
         const k = this.name ?? key;
@@ -80,11 +80,16 @@ export class Variable<T> implements Parsable<T> {
         return new Variable({ ...this.params, description });
     }
     public metavar(metavar: string): Variable<T> {
-        return new Variable({ ...this.params, metavar });
+        return new Variable({ ...this.params, metavar: () => metavar });
     }
     public describe(key?: string): string {
         let k = this.name ?? key;
-        return `${k}=${this._metavar ?? 'value'}${this._description ? `: ${this._description}` : ''}`;
+        const binding = `${k}=${this._metavar(this.defaultValue)}`
+        if (this._description !== undefined) {
+            return `# ${this._description}\n${binding}`;
+        } else {
+            return binding;
+        }
     }
 }
 
