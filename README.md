@@ -21,8 +21,8 @@ Here's an example of how to use evp-ts in your TypeScript project:
 import { EVP } from 'evp-ts';
 
 const parser = EVP.object({
-    API_ENDPOINT: EVP.string().description('The base URL of the API'),
-    API_TOKEN: EVP.string().secret().metavar('TOKEN'),
+    API_ENDPOINT: EVP.string(),
+    API_TOKEN: EVP.string().secret(),
     HTTP_PORT: EVP.decimal(),
     DEBUG_MODE: EVP.boolean().default(false),
     mysql: EVP.object({
@@ -71,6 +71,40 @@ evp-ts provides additional options for configuring the behavior of environment v
 
 - `.default(value)`: Specifies a default value to use if the environment variable is not set.
 - `.secret()`: Marks the environment variable as sensitive, hiding its value from logs.
+
+## Generating Help Text
+
+`parser.describe()` generates a dotenv-style help text from the parser.
+For this purpose, `.description(text)` and `.metavar(name)` methods are provided.
+If `.metavar(name)` is not specified, the default value or the type name is used as the metavariable name.
+
+```typescript:describe.ts
+import { EVP } from 'evp-ts';
+
+const parser = EVP.object({
+    API_ENDPOINT: EVP.string().description('The base URL of the API'),
+    API_TOKEN: EVP.string().secret().metavar('TOKEN'),
+    HTTP_PORT: EVP.decimal().description('The port number to listen on'),
+    DEBUG_MODE: EVP.boolean().default(false),
+    mysql: EVP.object({
+        host: EVP.string('MYSQL_HOST').default('localhost'),
+        port: EVP.string('MYSQL_PORT').default('3306'),
+    }),
+});
+
+console.log(parser.describe());
+```
+
+```
+# The base URL of the API
+API_ENDPOINT=<string>
+API_TOKEN=TOKEN
+# The port number to listen on
+HTTP_PORT=<decimal>
+DEBUG_MODE=false
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+```
 
 ## License
 
