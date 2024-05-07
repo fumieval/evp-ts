@@ -15,11 +15,12 @@
   "devDependencies": {
     "@types/node": "^20.12.8",
     "codedown": "^3.1.0",
-    "tsup": "8.0.2",
+    "tsx": "^4.9.3",
     "typescript": "^5.4.5",
     "vitest": "1.5.3"
   },
   "dependencies": {
-    "picocolors": "^1.0.0"
+    "picocolors": "^1.0.0",
+    "tsup": "^8.0.2"
   }
 }
