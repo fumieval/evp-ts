@@ -19,5 +19,7 @@
     "typescript": "^5.4.5",
     "vitest": "1.5.3"
   },
-  "dependencies": {}
+  "dependencies": {
+    "picocolors": "^1.0.0"
+  }
 }

@@ -33,18 +33,20 @@ const parser = EVP.object({
 
 type Config = EVP.infer<typeof parser>;
 
+console.log(parser.describe());
+
 const result: Config = parser.exec();
 
 console.log(result);
 ```
 
 ```
-Environment variable found: API_ENDPOINT=https://api.example.com
-Environment variable found: API_TOKEN=<REDACTED>
-Environment variable found: HTTP_PORT=3000
-Using the default: DEBUG_MODE=false
-Using the default: MYSQL_HOST=localhost
-Using the default: MYSQL_PORT=3306
+[EVP] API_ENDPOINT=https://example.com
+[EVP] API_TOKEN=<REDACTED>
+[EVP] HTTP_PORT=8080
+[EVP] DEBUG_MODE=false (default)
+[EVP] MYSQL_HOST=localhost (default)
+[EVP] MYSQL_PORT=3306 (default)
 {
   API_ENDPOINT: 'https://api.example.com',
   API_TOKEN: '00000000-0000-0000-0000-000000000000',
