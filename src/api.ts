@@ -1,6 +1,6 @@
 import { ObjectParser, Variable, ParsersOf } from './mod';
 
-export type infer<T extends ObjectParser<unknown>> = T['_T'];
+export type TypeOf<T extends ObjectParser<unknown>> = T['_T'];
 
 export function string(name?: string): Variable<string> {
     return new Variable({

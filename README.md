@@ -31,7 +31,7 @@ const parser = EVP.object({
     }),
 });
 
-type Config = EVP.infer<typeof parser>;
+type Config = EVP.TypeOf<typeof parser>;
 const result: Config = parser.exec();
 console.log(result);
 ```
