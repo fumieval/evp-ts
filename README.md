@@ -21,8 +21,8 @@ Here's an example of how to use evp-ts in your TypeScript project:
 import { EVP } from 'evp-ts';
 
 const parser = EVP.object({
-    API_ENDPOINT: EVP.string(),
-    API_TOKEN: EVP.string().secret(),
+    API_ENDPOINT: EVP.string().description('The base URL of the API'),
+    API_TOKEN: EVP.string().secret().metavar('TOKEN'),
     HTTP_PORT: EVP.decimal(),
     DEBUG_MODE: EVP.boolean().default(false),
     mysql: EVP.object({
@@ -32,11 +32,7 @@ const parser = EVP.object({
 });
 
 type Config = EVP.infer<typeof parser>;
-
-console.log(parser.describe());
-
 const result: Config = parser.exec();
-
 console.log(result);
 ```
 

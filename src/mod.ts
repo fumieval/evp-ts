@@ -12,6 +12,7 @@ export type Context = {
 
 export interface Parsable<T> {
     parse(ctx: Context, key: string): T | undefined;
+    describe(key?: string): string;
 }
 
 export class Variable<T> implements Parsable<T> {
@@ -19,18 +20,24 @@ export class Variable<T> implements Parsable<T> {
     public isSecret: boolean = false;
     public defaultValue?: T;
     public parser: (value: string) => T;
+    public _description?: string;
+    public _metavar?: string;
     public constructor(
         public params: {
             name?: string;
             isSecret?: boolean;
             defaultValue?: T;
             parser: (value: string) => T;
+            description?: string;
+            metavar?: string;
         },
     ) {
         this.name = params.name;
         this.isSecret = params.isSecret ?? false;
         this.defaultValue = params.defaultValue;
         this.parser = params.parser;
+        this._description = params.description;
+        this._metavar = params.metavar;
     }
     public parse(ctx: Context, key: string): T | undefined {
         const k = this.name ?? key;
@@ -68,6 +75,16 @@ export class Variable<T> implements Parsable<T> {
     }
     public default(defaultValue: T): Variable<T> {
         return new Variable({ ...this.params, defaultValue });
+    }
+    public description(description: string): Variable<T> {
+        return new Variable({ ...this.params, description });
+    }
+    public metavar(metavar: string): Variable<T> {
+        return new Variable({ ...this.params, metavar });
+    }
+    public describe(key?: string): string {
+        let k = this.name ?? key;
+        return `${k}=${this._metavar ?? 'value'}${this._description ? `: ${this._description}` : ''}`;
     }
 }
 
@@ -108,6 +125,11 @@ export class ObjectParser<T> implements Parsable<T> {
             throw final;
         }
         return final;
+    }
+    public describe(_key?: string): string {
+        return `${Object.keys(this.fields)
+            .map(k => this.fields[k as keyof T].describe(k))
+            .join('\n')}`;
     }
 }
 

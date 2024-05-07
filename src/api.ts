@@ -8,6 +8,7 @@ export function string(name?: string): Variable<string> {
         isSecret: false,
         parser: (value: string) => value,
         defaultValue: undefined,
+        metavar: 'string',
     });
 }
 
@@ -22,6 +23,7 @@ export function decimal(name?: string): Variable<number> {
             return parseInt(value);
         },
         defaultValue: undefined,
+        metavar: 'decimal',
     });
 }
 
@@ -44,6 +46,7 @@ export function boolean(name?: string): Variable<boolean> {
             }
         },
         defaultValue: undefined,
+        metavar: 'boolean',
     });
 }
 export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {
