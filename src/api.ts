@@ -36,10 +36,12 @@ export function boolean(name?: string): Variable<boolean> {
                 case 'true':
                 case 'yes':
                 case 'on':
+                case '1':
                     return true;
                 case 'false':
                 case 'no':
                 case 'off':
+                case '0':
                     return false;
                 default:
                     throw new Error(`Invalid boolean value: ${value}`);
