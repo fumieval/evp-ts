@@ -5,6 +5,7 @@ import {
     UndiscriminatedSwitcher,
 } from './mod';
 
+/** infer the type of an ObjectParser */
 export type TypeOf<T extends ObjectParser<unknown>> = T['_T'];
 
 export function string(name?: string): Variable<string> {

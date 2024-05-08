@@ -15,6 +15,7 @@ export interface Parsable<T> {
     describe(key?: string, prepend?: string): string;
 }
 
+/** Variable<T> represents a single environment variable that can be parsed into a value of type T */
 export class Variable<T> implements Parsable<T> {
     public name?: string;
     public isSecret: boolean = false;
@@ -75,18 +76,23 @@ export class Variable<T> implements Parsable<T> {
         }
     }
 
+    /** mark the variable as a secret, so its value will be redacted in logs */
     public secret(): Variable<T> {
         return new Variable({ ...this.params, isSecret: true });
     }
+    /** set a default value for the variable */
     public default(defaultValue: T): Variable<T> {
         return new Variable({ ...this.params, defaultValue });
     }
+    /** set a description for the variable */
     public description(description: string): Variable<T> {
         return new Variable({ ...this.params, description });
     }
+    /** set a metavariable for the variable */
     public metavar(metavar: string): Variable<T> {
         return new Variable({ ...this.params, metavar: () => metavar });
     }
+    /** dotenv-style description of the variable */
     public describe(key?: string): string {
         let k = this.name ?? key;
         const binding = `${k}=${this._metavar(this.defaultValue)}`;
@@ -98,7 +104,7 @@ export class Variable<T> implements Parsable<T> {
     }
 }
 
-// ParsersOf<T> is a record where each value is a Parsable<T[key]> for each key in T
+/** ParsersOf<T> is a record where each value is a Parsable<T[key]> for each key in T */
 export type ParsersOf<T> = {
     [K in keyof T]: Parsable<T[K]>;
 };
@@ -165,7 +171,7 @@ function fromPartial<T>(partial: Partial<T>): T | Error {
     return partial as T;
 }
 
-export type ResultOf<Discriminator extends string, T> = {
+export type Discriminated<Discriminator extends string, T> = {
     [K in keyof T]: { [P in Discriminator]: K } & T[K];
 }[keyof T];
 
@@ -220,7 +226,7 @@ export class UndiscriminatedSwitcher<T>
 }
 
 export class Switcher<Discriminator extends string, T>
-    implements Parsable<ResultOf<Discriminator, T>>
+    implements Parsable<Discriminated<Discriminator, T>>
 {
     constructor(
         private discriminator: Discriminator,
@@ -228,7 +234,10 @@ export class Switcher<Discriminator extends string, T>
         private _default?: keyof T,
         private name?: string,
     ) {}
-    parse(ctx: Context, key: string): ResultOf<Discriminator, T> | undefined {
+    parse(
+        ctx: Context,
+        key: string,
+    ): Discriminated<Discriminator, T> | undefined {
         const k = this.name ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
@@ -254,7 +263,7 @@ export class Switcher<Discriminator extends string, T>
         return {
             [this.discriminator]: value as keyof T,
             ...result,
-        } as ResultOf<Discriminator, T>;
+        } as Discriminated<Discriminator, T>;
     }
     describe(contextKey?: string): string {
         return describeOptions(
