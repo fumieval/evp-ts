@@ -47,7 +47,12 @@ export class Variable<T> implements Parsable<T> {
                 ctx.logger.missing(k);
                 return undefined;
             } else {
-                ctx.logger.useDefault(k, this.defaultValue === null ? 'null' : this.defaultValue.toString());
+                ctx.logger.useDefault(
+                    k,
+                    this.defaultValue === null
+                        ? 'null'
+                        : this.defaultValue.toString(),
+                );
                 return this.defaultValue;
             }
         } else {
@@ -84,7 +89,7 @@ export class Variable<T> implements Parsable<T> {
     }
     public describe(key?: string): string {
         let k = this.name ?? key;
-        const binding = `${k}=${this._metavar(this.defaultValue)}`
+        const binding = `${k}=${this._metavar(this.defaultValue)}`;
         if (this._description !== undefined) {
             return `# ${this._description}\n${binding}`;
         } else {
@@ -125,7 +130,9 @@ export class ObjectParser<T> implements Parsable<T> {
         for (const key in raw) {
             env[key] = { value: raw[key] ?? '', used: false };
         }
-        const final = fromPartial(this.run({ values: env, logger: logger ?? new ConsoleLogger() }));
+        const final = fromPartial(
+            this.run({ values: env, logger: logger ?? new ConsoleLogger() }),
+        );
         if (final instanceof Error) {
             throw final;
         }

@@ -23,7 +23,8 @@ export function decimal(name?: string): Variable<number> {
             return parseInt(value);
         },
         defaultValue: undefined,
-        metavar: (def?: number) => def === undefined ? '<decimal>' : def.toString(),
+        metavar: (def?: number) =>
+            def === undefined ? '<decimal>' : def.toString(),
     });
 }
 
@@ -48,7 +49,8 @@ export function boolean(name?: string): Variable<boolean> {
             }
         },
         defaultValue: undefined,
-        metavar: (def?: boolean) => def === undefined ? 'boolean' : def.toString(),
+        metavar: (def?: boolean) =>
+            def === undefined ? 'boolean' : def.toString(),
     });
 }
 export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {

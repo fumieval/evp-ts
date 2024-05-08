@@ -6,12 +6,12 @@ This package is inspired by [EVP](https://github.com/fumieval/EVP), an environme
 
 ## Features
 
-- 🧹 Clutter-free code
-- 🌳 Supports nested structure
-- 🧩 Type-safe parsing
-- 📝 Explicit logging of parsed environment variables
-- 🔒 Hiding sensitive values (e.g. API keys) from logs
-- 🛡️ Graceful handling of missing or invalid environment variables
+-   🧹 Clutter-free code
+-   🌳 Supports nested structure
+-   🧩 Type-safe parsing
+-   📝 Explicit logging of parsed environment variables
+-   🔒 Hiding sensitive values (e.g. API keys) from logs
+-   🛡️ Graceful handling of missing or invalid environment variables
 
 ## Usage
 
@@ -25,10 +25,17 @@ const parser = EVP.object({
     API_TOKEN: EVP.string().secret(),
     HTTP_PORT: EVP.decimal(),
     DEBUG_MODE: EVP.boolean().default(false),
-    mysql: EVP.object({
-        host: EVP.string('MYSQL_HOST').default('localhost'),
-        port: EVP.string('MYSQL_PORT').default('3306'),
-    }),
+    DATABASE_BACKEND: EVP.select()
+        .discriminator('backend')
+        .options({
+            mysql: EVP.object({
+                host: EVP.string('MYSQL_HOST').default('localhost'),
+                port: EVP.string('MYSQL_PORT').default('3306'),
+            }),
+            sqlite: EVP.object({
+                path: EVP.string('SQLITE_PATH'),
+            }),
+        }),
 });
 
 type Config = EVP.TypeOf<typeof parser>;
@@ -60,17 +67,17 @@ The `exec()` method is then called on the parser to parse the environment variab
 
 evp-ts supports the following types for parsing environment variables:
 
-- `EVP.string()`: Get the value as a string.
-- `EVP.decimal()`: Parses the value as a decimal number.
-- `EVP.boolean()`: Parses the value as a boolean (`true`, `yes`, and `1` becomes `true` and `false`, `no`, `0` becomes `false`).
-- `EVP.object()`: Defines a nested object structure for grouping related environment variables.
+-   `EVP.string()`: Get the value as a string.
+-   `EVP.decimal()`: Parses the value as a decimal number.
+-   `EVP.boolean()`: Parses the value as a boolean (`true`, `yes`, and `1` becomes `true` and `false`, `no`, `0` becomes `false`).
+-   `EVP.object()`: Defines a nested object structure for grouping related environment variables.
 
 ## Additional Options
 
 evp-ts provides additional options for configuring the behavior of environment variable parsing:
 
-- `.default(value)`: Specifies a default value to use if the environment variable is not set.
-- `.secret()`: Marks the environment variable as sensitive, hiding its value from logs.
+-   `.default(value)`: Specifies a default value to use if the environment variable is not set.
+-   `.secret()`: Marks the environment variable as sensitive, hiding its value from logs.
 
 ## Generating Help Text
 
@@ -86,10 +93,17 @@ const parser = EVP.object({
     API_TOKEN: EVP.string().secret().metavar('TOKEN'),
     HTTP_PORT: EVP.decimal().description('The port number to listen on'),
     DEBUG_MODE: EVP.boolean().default(false),
-    mysql: EVP.object({
-        host: EVP.string('MYSQL_HOST').default('localhost'),
-        port: EVP.string('MYSQL_PORT').default('3306'),
-    }),
+    DATABASE_BACKEND: EVP.select()
+        .discriminator('backend')
+        .options({
+            mysql: EVP.object({
+                host: EVP.string('MYSQL_HOST').default('localhost'),
+                port: EVP.string('MYSQL_PORT').default('3306'),
+            }),
+            sqlite: EVP.object({
+                path: EVP.string('SQLITE_PATH').default('db.sqlite'),
+            }),
+        }),
 });
 
 console.log(parser.describe());

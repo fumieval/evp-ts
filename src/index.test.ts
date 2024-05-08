@@ -18,7 +18,9 @@ class TestLogger implements ILogger {
         this.logs.push(`Missing environment variable: ${key}`);
     }
     public error(key: string, value: string, error: Error): void {
-        this.logs.push(`Error parsing environment variable: ${key}=${value} (${error.message})`);
+        this.logs.push(
+            `Error parsing environment variable: ${key}=${value} (${error.message})`,
+        );
     }
 }
 
