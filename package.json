@@ -1,27 +1,28 @@
 {
-  "name": "evp-ts",
-  "version": "1.0.0",
-  "description": "Environment Variable Parser",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsup ./src/index.ts --format esm,cjs --dts",
-    "test": "vitest",
-    "example": "cat README.md | yarn run --silent codedown typescript | sed \"s/'evp-ts'/'.'/\" > dist/example.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/example.ts",
-    "example:describe": "cat README.md | yarn run --silent codedown typescript:describe.ts | sed \"s/'evp-ts'/'.'/\" > dist/describe.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/describe.ts"
-  },
-  "repository": "https://github.com/fumieval/evp-ts",
-  "author": "Fumiaki Kinoshita",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^20.12.8",
-    "codedown": "^3.1.0",
-    "tsx": "^4.9.3",
-    "typescript": "^5.4.5",
-    "vitest": "1.5.3"
-  },
-  "dependencies": {
-    "picocolors": "^1.0.0",
-    "tsup": "^8.0.2"
-  }
+    "name": "evp-ts",
+    "version": "1.0.0",
+    "description": "Environment Variable Parser",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsup ./src/index.ts --format esm,cjs --dts",
+        "test": "vitest",
+        "example": "cat README.md | yarn run --silent codedown typescript | sed \"s/'evp-ts'/'.'/\" > dist/example.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/example.ts",
+        "example:describe": "cat README.md | yarn run --silent codedown typescript:describe.ts | sed \"s/'evp-ts'/'.'/\" > dist/describe.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/describe.ts"
+    },
+    "repository": "https://github.com/fumieval/evp-ts",
+    "author": "Fumiaki Kinoshita",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/node": "^20.12.8",
+        "codedown": "^3.1.0",
+        "prettier": "^3.2.5",
+        "tsx": "^4.9.3",
+        "typescript": "^5.4.5",
+        "vitest": "1.5.3"
+    },
+    "dependencies": {
+        "picocolors": "^1.0.0",
+        "tsup": "^8.0.2"
+    }
 }
