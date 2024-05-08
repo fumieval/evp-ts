@@ -33,6 +33,19 @@ export function decimal(name?: string): Variable<number> {
     });
 }
 
+export function number(name?: string): Variable<number> {
+    return new Variable({
+        name,
+        isSecret: false,
+        parser(value: string) {
+            return Number(value);
+        },
+        defaultValue: undefined,
+        metavar: (def?: number) =>
+            def === undefined ? '<number>' : def.toString(),
+    });
+}
+
 export function boolean(name?: string): Variable<boolean> {
     return new Variable({
         name,

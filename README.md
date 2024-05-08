@@ -23,7 +23,7 @@ import { EVP } from 'evp-ts';
 const parser = EVP.object({
     API_ENDPOINT: EVP.string(),
     API_TOKEN: EVP.string().secret(),
-    HTTP_PORT: EVP.decimal(),
+    HTTP_PORT: EVP.number(),
     DEBUG_MODE: EVP.boolean().default(false),
 });
 
@@ -57,7 +57,7 @@ The `exec()` method is then called on the parser to parse the environment variab
 evp-ts supports the following types for parsing environment variables:
 
 - `EVP.string()`: Get the value as a string.
-- `EVP.decimal()`: Parses the value as a decimal.
+- `EVP.number()`: Parses the value as a number.
 - `EVP.boolean()`: Parses the value as a boolean (`true`, `yes`, and `1` becomes `true` and `false`, `no`, `0` becomes `false`).
 - `EVP.object()`: Defines a nested object structure for grouping related environment variables.
 
@@ -80,7 +80,7 @@ import { EVP } from 'evp-ts';
 const parser = EVP.object({
     API_ENDPOINT: EVP.string().description('The base URL of the API'),
     API_TOKEN: EVP.string().secret().metavar('TOKEN'),
-    HTTP_PORT: EVP.decimal().description('The port number to listen on'),
+    HTTP_PORT: EVP.number().description('The port number to listen on'),
     DEBUG_MODE: EVP.boolean().default(false),
 });
 
@@ -92,7 +92,7 @@ console.log(parser.describe());
 API_ENDPOINT=<string>
 API_TOKEN=TOKEN
 # The port number to listen on
-HTTP_PORT=<decimal>
+HTTP_PORT=<number>
 DEBUG_MODE=false
 ```
 
@@ -114,7 +114,7 @@ const parser = EVP.object({
         .options({
             mysql: EVP.object({
                 host: EVP.string('MYSQL_HOST').default('localhost'),
-                port: EVP.decimal('MYSQL_PORT').default(3306),
+                port: EVP.number('MYSQL_PORT').default(3306),
             }).description('MySQL database connection settings'),
             sqlite: EVP.object({
                 path: EVP.string('SQLITE_PATH'),
