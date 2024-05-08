@@ -119,10 +119,11 @@ const parser = EVP.object({
             sqlite: EVP.object({
                 path: EVP.string('SQLITE_PATH'),
             }),
-        }),
+        })
         // .default('sqlite'),
 });
 
+console.log(parser.describe());
 console.log(parser.exec());
 ```
 

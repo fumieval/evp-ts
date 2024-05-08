@@ -12,7 +12,7 @@ export type Context = {
 
 export interface Parsable<T> {
     parse(ctx: Context, key: string): T | undefined;
-    describe(key?: string): string;
+    describe(key?: string, prepend?: string): string;
 }
 
 export class Variable<T> implements Parsable<T> {
@@ -105,7 +105,10 @@ export type ParsersOf<T> = {
 
 export class ObjectParser<T> implements Parsable<T> {
     readonly _T!: T;
-    public constructor(public fields: ParsersOf<T>) {}
+    public constructor(
+        public fields: ParsersOf<T>,
+        public _description?: string,
+    ) {}
     public parse(ctx: Context, _key: string): T | undefined {
         const result = fromPartial(this.run(ctx));
         if (result instanceof Error) {
@@ -138,10 +141,14 @@ export class ObjectParser<T> implements Parsable<T> {
         }
         return final;
     }
-    public describe(_key?: string): string {
-        return `${Object.keys(this.fields)
+    public describe(_key?: string, prepend?: string): string {
+        const header = this._description ? `# ${this._description}\n` : '';
+        return `${header}${prepend ?? ''}${Object.keys(this.fields)
             .map((k) => this.fields[k as keyof T].describe(k))
             .join('\n')}`;
+    }
+    public description(description: string): ObjectParser<T> {
+        return new ObjectParser(this.fields, description);
     }
 }
 
@@ -277,11 +284,11 @@ function describeOptions<T>(
     return Object.keys(options)
         .map((k) => {
             const option = options[k as keyof T];
-            const desc = option.describe(k);
+            const desc = option.describe(k, `${key}=${k}\n`);
             if (k === defaultOption) {
-                return `${key}=${k}\n${desc}`;
+                return desc;
             } else {
-                return `# ${key}=${k}\n${commentOut(desc)}`;
+                return commentOut(desc);
             }
         })
         .join('\n\n');
