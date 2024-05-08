@@ -281,11 +281,15 @@ function describeOptions<T>(
             if (k === defaultOption) {
                 return `${key}=${k}\n${desc}`;
             } else {
-                return [
-                    `# ${key}=${k}`,
-                    ...desc.split('\n').map((line) => `# ${line}`),
-                ].join('\n');
+                return `# ${key}=${k}\n${commentOut(desc)}`;
             }
         })
         .join('\n\n');
+}
+
+function commentOut(text: string): string {
+    return text
+        .split('\n')
+        .map((line) => (line.startsWith('#') ? line : `# ${line}`))
+        .join('\n');
 }
