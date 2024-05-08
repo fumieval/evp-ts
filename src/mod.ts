@@ -140,16 +140,152 @@ export class ObjectParser<T> implements Parsable<T> {
     }
     public describe(_key?: string): string {
         return `${Object.keys(this.fields)
-            .map(k => this.fields[k as keyof T].describe(k))
+            .map((k) => this.fields[k as keyof T].describe(k))
             .join('\n')}`;
     }
 }
 
 function fromPartial<T>(partial: Partial<T>): T | Error {
     // report an error with a list of missing variables
-    const missing = Object.keys(partial).filter(key => partial[key as keyof T] === undefined);
+    const missing = Object.keys(partial).filter(
+        (key) => partial[key as keyof T] === undefined,
+    );
     if (missing.length > 0) {
-        return Error(`Unable to fill the following fields: ${missing.join(', ')}`);
+        return Error(
+            `Unable to fill the following fields: ${missing.join(', ')}`,
+        );
     }
     return partial as T;
+}
+
+export type ResultOf<Discriminator extends string, T> = {
+    [K in keyof T]: { [P in Discriminator]: K } & T[K];
+}[keyof T];
+
+export class UndiscriminatedSwitcher<T>
+    implements Parsable<{ [K in keyof T]: T[K] }[keyof T]>
+{
+    constructor(
+        private _options: ParsersOf<T>,
+        private _default?: keyof T,
+        private name?: string,
+    ) {}
+    parse(
+        ctx: Context,
+        key: string,
+    ): { [K in keyof T]: T[K] }[keyof T] | undefined {
+        const k = this.name ?? key;
+        const value = ctx.values[k]?.value ?? this._default;
+        if (value === undefined) {
+            ctx.logger.missing(k);
+            return undefined;
+        }
+        const parser = this._options[k as keyof T];
+        const result = parser.parse(ctx, k);
+        if (result === undefined) {
+            return undefined;
+        }
+        return result;
+    }
+    describe(key?: string): string {
+        return describeOptions(
+            this.name ?? key ?? '',
+            this._options,
+            this._default,
+        );
+    }
+    options<U extends T>(options: ParsersOf<U>): UndiscriminatedSwitcher<U> {
+        return new UndiscriminatedSwitcher(options, this._default, this.name);
+    }
+    default(key: keyof T): UndiscriminatedSwitcher<T> {
+        return new UndiscriminatedSwitcher(this._options, key, this.name);
+    }
+    discriminator<Discriminator extends string>(
+        discriminator: Discriminator,
+    ): Switcher<Discriminator, T> {
+        return new Switcher(
+            discriminator,
+            this._options,
+            this._default,
+            this.name,
+        );
+    }
+}
+
+export class Switcher<Discriminator extends string, T>
+    implements Parsable<ResultOf<Discriminator, T>>
+{
+    constructor(
+        private discriminator: Discriminator,
+        private _options: ParsersOf<T>,
+        private _default?: keyof T,
+        private name?: string,
+    ) {}
+    parse(ctx: Context, key: string): ResultOf<Discriminator, T> | undefined {
+        const k = this.name ?? key;
+        const value = ctx.values[k]?.value ?? this._default;
+        if (value === undefined) {
+            ctx.logger.missing(k);
+            return undefined;
+        }
+        const parser = this._options[value as keyof T];
+        if (parser === undefined) {
+            ctx.logger.error(
+                k,
+                value,
+                new Error(
+                    `${k} must be one of ${Object.keys(this.options).join(', ')}, but got ${value}`,
+                ),
+            );
+            return undefined;
+        }
+        ctx.logger.present(k, value);
+        const result = parser.parse(ctx, k);
+        if (result === undefined) {
+            return undefined;
+        }
+        return {
+            [this.discriminator]: value as keyof T,
+            ...result,
+        } as ResultOf<Discriminator, T>;
+    }
+    describe(contextKey?: string): string {
+        return describeOptions(
+            this.name ?? contextKey ?? '',
+            this._options,
+            this._default,
+        );
+    }
+    options<U extends T>(options: ParsersOf<U>): Switcher<Discriminator, U> {
+        return new Switcher(
+            this.discriminator,
+            options,
+            this._default,
+            this.name,
+        );
+    }
+    default(key: keyof T): Switcher<Discriminator, T> {
+        return new Switcher(this.discriminator, this._options, key, this.name);
+    }
+}
+
+function describeOptions<T>(
+    key: string,
+    options: ParsersOf<T>,
+    defaultOption?: keyof T,
+): string {
+    return Object.keys(options)
+        .map((k) => {
+            const option = options[k as keyof T];
+            const desc = option.describe(k);
+            if (k === defaultOption) {
+                return `${key}=${k}\n${desc}`;
+            } else {
+                return [
+                    `# ${key}=${k}`,
+                    ...desc.split('\n').map((line) => `# ${line}`),
+                ].join('\n');
+            }
+        })
+        .join('\n\n');
 }

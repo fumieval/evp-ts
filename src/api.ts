@@ -1,4 +1,9 @@
-import { ObjectParser, Variable, ParsersOf } from './mod';
+import {
+    ObjectParser,
+    Variable,
+    ParsersOf,
+    UndiscriminatedSwitcher,
+} from './mod';
 
 export type TypeOf<T extends ObjectParser<unknown>> = T['_T'];
 
@@ -55,4 +60,8 @@ export function boolean(name?: string): Variable<boolean> {
 }
 export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {
     return new ObjectParser(fields);
+}
+
+export function union(name?: string): UndiscriminatedSwitcher<{}> {
+    return new UndiscriminatedSwitcher({}, undefined, name);
 }
