@@ -35,7 +35,7 @@ const parser = EVP.object({
     }),
 });
 
-type Config = EVP.infer<typeof parser>;
+type Config = EVP.TypeOf<typeof parser>;
 
 describe('EVP', () => {
     test('parse successfully', () => {
