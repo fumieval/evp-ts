@@ -74,7 +74,7 @@ evp-ts provides additional options for configuring the behavior of environment v
 For this purpose, `.description(text)` and `.metavar(name)` methods are provided.
 If `.metavar(name)` is not specified, the default value or the type name is used as the metavariable name.
 
-```typescript:describe.ts
+```typescript
 import { EVP } from 'evp-ts';
 
 const parser = EVP.object({
@@ -96,7 +96,7 @@ HTTP_PORT=<number>
 DEBUG_MODE=false
 ```
 
-## Discriminated Unions (switching between a different set of environment variables)
+## Discriminated Unions
 
 In the following example, the `DATABASE_BACKEND` environment variable is used to switch between different sets of environment variables for different database backends.
 
@@ -105,7 +105,7 @@ The `options()` method is then used to define a set of parsers for each possible
 The field specified by the `discriminator()` contains the value of `DATABASE_BACKEND`.
 If `DATABASE_BACKEND` is not set, it will use the default option specified by the `.default()` method.
 
-```typescript:union.ts
+```typescript
 import { EVP } from 'evp-ts';
 
 const parser = EVP.object({

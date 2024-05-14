@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "target": "es2022",
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "strict": true,
         "allowSyntheticDefaultImports": true
     },

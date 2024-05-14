@@ -7,9 +7,9 @@
     "scripts": {
         "build": "tsup ./src/index.ts --format esm,cjs --dts",
         "test": "vitest",
-        "example": "cat README.md | yarn run --silent codedown typescript | sed \"s/'evp-ts'/'.'/\" > dist/example.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/example.ts",
-        "example:describe": "cat README.md | yarn run --silent codedown typescript:describe.ts | sed \"s/'evp-ts'/'.'/\" > dist/describe.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/describe.ts",
-        "example:union": "cat README.md | yarn run --silent codedown typescript:union.ts | sed \"s/'evp-ts'/'.'/\" > dist/union.ts && DATABASE_BACKEND=sqlite SQLITE_PATH=./db.sqlite tsx dist/union.ts"
+        "example": "cat README.md | yarn run --silent codedown typescript codedown typescript --section '## Usage' | sed \"s/'evp-ts'/'.'/\" > dist/example.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/example.ts",
+        "example:describe": "cat README.md | yarn run --silent codedown typescript --section '## Generating Help Text' | sed \"s/'evp-ts'/'.'/\" > dist/describe.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/describe.ts",
+        "example:union": "cat README.md | yarn run --silent codedown typescript --section '## Discriminated Unions' | sed \"s/'evp-ts'/'.'/\" > dist/union.ts && DATABASE_BACKEND=sqlite SQLITE_PATH=./db.sqlite tsx dist/union.ts"
     },
     "repository": "https://github.com/fumieval/evp-ts",
     "author": "Fumiaki Kinoshita",
@@ -19,6 +19,7 @@
         "codedown": "^3.1.0",
         "prettier": "^3.2.5",
         "tsx": "^4.9.3",
+        "typedoc": "^0.25.13",
         "typescript": "^5.4.5",
         "vitest": "1.5.3"
     },
