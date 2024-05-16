@@ -6,6 +6,7 @@ import {
 } from './mod';
 
 export { Variable, ObjectParser, UndiscriminatedSwitcher, Switcher } from './mod';
+export { ILogger, ConsoleLogger } from './logger';
 
 /**
  * Infer the type of an ObjectParser
