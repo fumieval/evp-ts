@@ -3,7 +3,8 @@
         "target": "es2022",
         "moduleResolution": "bundler",
         "strict": true,
-        "allowSyntheticDefaultImports": true
+        "allowSyntheticDefaultImports": true,
+        "declaration": true
     },
     "include": ["src/**/*.ts"],
     "exclude": ["node_modules"]
