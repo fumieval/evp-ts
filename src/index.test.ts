@@ -8,19 +8,11 @@ class TestLogger implements ILogger {
     public constructor() {
         this.logs = [];
     }
-    public present(key: string, value: string): void {
-        this.logs.push(`Environment variable found: ${key}=${value}`);
-    }
-    public useDefault(key: string, value: string): void {
-        this.logs.push(`Using the default: ${key}=${value}`);
-    }
-    public missing(key: string): void {
-        this.logs.push(`Missing environment variable: ${key}`);
+    public success(key: string, value: string, useDefault: boolean): void {
+        this.logs.push(`${key}=${value}${useDefault ? ' (default)' : ''}`);
     }
     public error(key: string, value: string, error: Error): void {
-        this.logs.push(
-            `Error parsing environment variable: ${key}=${value} (${error.message})`,
-        );
+        this.logs.push(`${key}=${value} ERROR: ${error.message}`);
     }
 }
 
@@ -40,15 +32,12 @@ type Config = EVP.TypeOf<typeof parser>;
 describe('EVP', () => {
     test('parse successfully', () => {
         const logger = new TestLogger();
-        const config: Config = parser.exec(
-            {
-                API_ENDPOINT: 'https://example.com',
-                API_TOKEN: 'secret',
-                HTTP_PORT: '8080',
-                MYSQL_HOST: '127.0.0.1',
-            },
-            logger,
-        );
+        const config: Config = parser.logger(logger).parse({
+            API_ENDPOINT: 'https://example.com',
+            API_TOKEN: 'secret',
+            HTTP_PORT: '8080',
+            MYSQL_HOST: '127.0.0.1',
+        });
         expect(config).toEqual({
             API_ENDPOINT: 'https://example.com',
             API_TOKEN: 'secret',
@@ -57,54 +46,48 @@ describe('EVP', () => {
             mysql: { host: '127.0.0.1', port: '3306' },
         });
         expect(logger.logs).toEqual([
-            'Environment variable found: API_ENDPOINT=https://example.com',
-            'Environment variable found: API_TOKEN=<REDACTED>',
-            'Environment variable found: HTTP_PORT=8080',
-            'Using the default: DEBUG_MODE=false',
-            'Environment variable found: MYSQL_HOST=127.0.0.1',
-            'Using the default: MYSQL_PORT=3306',
+            'API_ENDPOINT=https://example.com',
+            'API_TOKEN=<REDACTED>',
+            'HTTP_PORT=8080',
+            'DEBUG_MODE=false (default)',
+            'MYSQL_HOST=127.0.0.1',
+            'MYSQL_PORT=3306 (default)',
         ]);
     });
     test('reject invalid decimals', () => {
         const logger = new TestLogger();
         try {
-            parser.exec(
-                {
-                    API_ENDPOINT: 'https://example.com',
-                    API_TOKEN: 'secret',
-                    HTTP_PORT: '808o',
-                },
-                logger,
-            );
+            parser.logger(logger).parse({
+                API_ENDPOINT: 'https://example.com',
+                API_TOKEN: 'secret',
+                HTTP_PORT: '808o',
+            });
         } catch (_error) {
             expect(logger.logs).toEqual([
-                'Environment variable found: API_ENDPOINT=https://example.com',
-                'Environment variable found: API_TOKEN=<REDACTED>',
-                'Error parsing environment variable: HTTP_PORT=808o (invalid decimal)',
-                'Using the default: DEBUG_MODE=false',
-                'Using the default: MYSQL_HOST=localhost',
-                'Using the default: MYSQL_PORT=3306',
+                'API_ENDPOINT=https://example.com',
+                'API_TOKEN=<REDACTED>',
+                'HTTP_PORT=808o ERROR: invalid decimal',
+                'DEBUG_MODE=false (default)',
+                'MYSQL_HOST=localhost (default)',
+                'MYSQL_PORT=3306 (default)',
             ]);
         }
     });
     test('reject missing variable', () => {
         const logger = new TestLogger();
         try {
-            parser.exec(
-                {
-                    API_ENDPOINT: 'https://example.com',
-                    API_TOKEN: 'secret',
-                },
-                logger,
-            );
+            parser.logger(logger).parse({
+                API_ENDPOINT: 'https://example.com',
+                API_TOKEN: 'secret',
+            });
         } catch (_error) {
             expect(logger.logs).toEqual([
-                'Environment variable found: API_ENDPOINT=https://example.com',
-                'Environment variable found: API_TOKEN=<REDACTED>',
-                'Missing environment variable: HTTP_PORT',
-                'Using the default: DEBUG_MODE=false',
-                'Using the default: MYSQL_HOST=localhost',
-                'Using the default: MYSQL_PORT=3306',
+                'API_ENDPOINT=https://example.com',
+                'API_TOKEN=<REDACTED>',
+                'HTTP_PORT= ERROR: missing environment variable',
+                'DEBUG_MODE=false (default)',
+                'MYSQL_HOST=localhost (default)',
+                'MYSQL_PORT=3306 (default)',
             ]);
         }
     });
