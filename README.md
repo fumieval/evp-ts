@@ -1,8 +1,10 @@
 # evp-ts: Environment Variable Parser for TypeScript
 
+[![npm version](https://badge.fury.io/js/evp-ts.svg)](https://badge.fury.io/js/evp-ts)
+
 evp-ts is a lightweight and easy-to-use library for parsing environment variables in TypeScript projects. It provides a simple way to collect and validate environment variables.
 
-This package is inspired by [EVP](https://github.com/fumieval/EVP), an environment variable parser library for Haskell.
+This package is inspired by [zod](https://zod.dev/) and [EVP](https://github.com/fumieval/EVP), an environment variable parser library for Haskell.
 
 ## Features
 
@@ -29,6 +31,7 @@ const parser = EVP.object({
 
 type Config = EVP.TypeOf<typeof parser>;
 const result: Config = parser.exec();
+
 console.log(result);
 ```
 
