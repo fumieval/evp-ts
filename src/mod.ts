@@ -11,7 +11,7 @@ export type Context = {
 };
 
 export interface Parsable<T> {
-    parse(ctx: Context, key: string): T | undefined;
+    parseKey(ctx: Context, key: string): T | undefined;
     describe(key?: string, prepend?: string): string;
 }
 
@@ -23,6 +23,7 @@ export class Variable<T> implements Parsable<T> {
     public parser: (value: string) => T;
     public _description?: string;
     public _metavar: (defaultValue?: T) => string;
+    public _logger: ILogger | undefined;
     public constructor(
         public params: {
             name?: string;
@@ -40,7 +41,7 @@ export class Variable<T> implements Parsable<T> {
         this._description = params.description;
         this._metavar = params.metavar ?? (() => '<value>');
     }
-    public parse(ctx: Context, key: string): T | undefined {
+    public parseKey(ctx: Context, key: string): T | undefined {
         const k = this.name ?? key;
         const state = ctx.values[k];
         if (state === undefined) {
@@ -114,8 +115,9 @@ export class ObjectParser<T> implements Parsable<T> {
     public constructor(
         public fields: ParsersOf<T>,
         public _description?: string,
+        public _logger?: ILogger,
     ) {}
-    public parse(ctx: Context, _key: string): T | undefined {
+    public parseKey(ctx: Context, _key: string): T | undefined {
         const result = fromPartial(this.run(ctx));
         if (result instanceof Error) {
             return undefined;
@@ -129,18 +131,21 @@ export class ObjectParser<T> implements Parsable<T> {
             if (!variable) {
                 continue;
             }
-            result[key] = variable.parse(ctx, key);
+            result[key] = variable.parseKey(ctx, key);
         }
         return result;
     }
-    public exec(input?: Record<string, string>, logger?: ILogger): T {
+    public parse(input?: Record<string, string>): T {
         const raw = input ?? process.env;
         const env: Record<string, State> = {};
         for (const key in raw) {
             env[key] = { value: raw[key] ?? '', used: false };
         }
         const final = fromPartial(
-            this.run({ values: env, logger: logger ?? new ConsoleLogger() }),
+            this.run({
+                values: env,
+                logger: this._logger ?? new ConsoleLogger(),
+            }),
         );
         if (final instanceof Error) {
             throw final;
@@ -154,7 +159,10 @@ export class ObjectParser<T> implements Parsable<T> {
             .join('\n')}`;
     }
     public description(description: string): ObjectParser<T> {
-        return new ObjectParser(this.fields, description);
+        return new ObjectParser(this.fields, description, this._logger);
+    }
+    public logger(logger: ILogger): ObjectParser<T> {
+        return new ObjectParser(this.fields, this._description, logger);
     }
 }
 
@@ -183,7 +191,7 @@ export class UndiscriminatedSwitcher<T>
         private _default?: keyof T,
         private name?: string,
     ) {}
-    parse(
+    parseKey(
         ctx: Context,
         key: string,
     ): { [K in keyof T]: T[K] }[keyof T] | undefined {
@@ -194,7 +202,7 @@ export class UndiscriminatedSwitcher<T>
             return undefined;
         }
         const parser = this._options[k as keyof T];
-        const result = parser.parse(ctx, k);
+        const result = parser.parseKey(ctx, k);
         if (result === undefined) {
             return undefined;
         }
@@ -234,7 +242,7 @@ export class Switcher<Discriminator extends string, T>
         private _default?: keyof T,
         private name?: string,
     ) {}
-    parse(
+    parseKey(
         ctx: Context,
         key: string,
     ): Discriminated<Discriminator, T> | undefined {
@@ -256,7 +264,7 @@ export class Switcher<Discriminator extends string, T>
             return undefined;
         }
         ctx.logger.present(k, value);
-        const result = parser.parse(ctx, k);
+        const result = parser.parseKey(ctx, k);
         if (result === undefined) {
             return undefined;
         }

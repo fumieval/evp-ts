@@ -30,7 +30,7 @@ const parser = EVP.object({
 });
 
 type Config = EVP.TypeOf<typeof parser>;
-const result: Config = parser.exec();
+const result: Config = parser.parse();
 
 console.log(result);
 ```
@@ -127,7 +127,7 @@ const parser = EVP.object({
 });
 
 console.log(parser.describe());
-console.log(parser.exec());
+console.log(parser.parse());
 ```
 
 ## License
