@@ -10,7 +10,8 @@
         "test": "vitest",
         "example": "cat README.md | yarn run --silent codedown typescript codedown typescript --section '## Usage' | sed \"s/'evp-ts'/'.'/\" > dist/example.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/example.ts",
         "example:describe": "cat README.md | yarn run --silent codedown typescript --section '## Generating Help Text' | sed \"s/'evp-ts'/'.'/\" > dist/describe.ts && API_ENDPOINT=https://example.com API_TOKEN=secret HTTP_PORT=8080 tsx dist/describe.ts",
-        "example:union": "cat README.md | yarn run --silent codedown typescript --section '## Discriminated Unions' | sed \"s/'evp-ts'/'.'/\" > dist/union.ts && DATABASE_BACKEND=sqlite SQLITE_PATH=./db.sqlite tsx dist/union.ts"
+        "example:union": "cat README.md | yarn run --silent codedown typescript --section '## Discriminated Unions' | sed \"s/'evp-ts'/'.'/\" > dist/union.ts && DATABASE_BACKEND=sqlite SQLITE_PATH=./db.sqlite tsx dist/union.ts",
+        "example:logger": "cat README.md | yarn run --silent codedown typescript --section '## Customising the logger' | sed \"s/'evp-ts'/'.'/\" > dist/logger.ts && LOG_LEVEL=debug tsx dist/logger.ts"
     },
     "repository": "https://github.com/fumieval/evp-ts",
     "author": "Fumiaki Kinoshita",

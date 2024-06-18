@@ -130,6 +130,27 @@ console.log(parser.describe());
 console.log(parser.parse());
 ```
 
+## Customising the logger
+
+By default, evp-ts uses the `console` object to log messages. You can customize the logger by calling `.logger()` on the parser object.
+
+```typescript
+import { EVP } from 'evp-ts';
+
+const parser = EVP.object({
+    API_ENDPOINT: EVP.string(),
+}).logger({
+    success(key, value, useDefault){
+        console.log(`${key}=${useDefault ? `(default) ${value}` : value}`);
+    },
+    error(key, value, error){
+        console.error(`${key}=${value}: ${error.message}`);
+    },
+});
+
+parser.parse();
+```
+
 ## License
 
 evp-ts is open-source software licensed under the [MIT License](https://opensource.org/licenses/MIT).
