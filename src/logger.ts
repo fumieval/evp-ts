@@ -2,7 +2,7 @@ import pc from 'picocolors';
 
 export interface ILogger {
     success(key: string, value: string, useDefault: boolean): void;
-    error(key: string, value: string, error: Error): void;
+    error(key: string, value: string | undefined, error: Error): void;
 }
 
 export class ConsoleLogger implements ILogger {
@@ -11,7 +11,7 @@ export class ConsoleLogger implements ILogger {
             `${pc.blue('[EVP]')} ${key}=${value}${useDefault ? ' (default)' : ''}`,
         );
     }
-    public error(key: string, value: string, error: Error): void {
+    public error(key: string, value: string | undefined, error: Error): void {
         console.error(
             `${pc.red('[EVP]')} ${key}=${value} ERROR: ${error.message}`,
         );

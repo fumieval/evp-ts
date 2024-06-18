@@ -48,7 +48,7 @@ export class Variable<T> implements Parsable<T> {
             if (this.defaultValue === undefined) {
                 ctx.logger.error(
                     k,
-                    '',
+                    undefined,
                     new Error('missing environment variable'),
                 );
                 return undefined;
@@ -203,7 +203,11 @@ export class UndiscriminatedSwitcher<T>
         const k = this.name ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
-            ctx.logger.error(k, '', new Error('missing environment variable'));
+            ctx.logger.error(
+                k,
+                undefined,
+                new Error('missing environment variable'),
+            );
             return undefined;
         }
         const parser = this._options[k as keyof T];
@@ -254,7 +258,11 @@ export class Switcher<Discriminator extends string, T>
         const k = this.name ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
-            ctx.logger.error(k, '', new Error('missing environment variable'));
+            ctx.logger.error(
+                k,
+                undefined,
+                new Error('missing environment variable'),
+            );
             return undefined;
         }
         const parser = this._options[value as keyof T];
