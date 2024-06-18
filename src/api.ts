@@ -70,7 +70,11 @@ export function number(name?: string): Variable<number> {
         name,
         isSecret: false,
         parser(value: string) {
-            return Number(value);
+            const result = Number(value);
+            if (isNaN(result) && value !== 'NaN') {
+                throw new Error(`invalid number`);
+            }
+            return result;
         },
         defaultValue: undefined,
         metavar: (def?: number) =>
@@ -84,16 +88,16 @@ export function number(name?: string): Variable<number> {
  * - yes
  * - on
  * - 1
- * 
+ *
  * The following values are considered false:
  * - false
  * - no
  * - off
  * - 0
- * 
+ *
  * @param name - The name of the variable
  * @returns A Variable of type boolean
- * 
+ *
  * @example
  * ```ts
  * { DEBUG_MODE: EVP.boolean().default(false) }
@@ -116,7 +120,7 @@ export function boolean(name?: string): Variable<boolean> {
                 case '0':
                     return false;
                 default:
-                    throw new Error(`Invalid boolean value: ${value}`);
+                    throw new Error(`Invalid boolean value`);
             }
         },
         defaultValue: undefined,
