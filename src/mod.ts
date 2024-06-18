@@ -46,14 +46,19 @@ export class Variable<T> implements Parsable<T> {
         const state = ctx.values[k];
         if (state === undefined) {
             if (this.defaultValue === undefined) {
-                ctx.logger.missing(k);
+                ctx.logger.error(
+                    k,
+                    '',
+                    new Error('missing environment variable'),
+                );
                 return undefined;
             } else {
-                ctx.logger.useDefault(
+                ctx.logger.success(
                     k,
                     this.defaultValue === null
                         ? 'null'
                         : this.defaultValue.toString(),
+                    true,
                 );
                 return this.defaultValue;
             }
@@ -62,9 +67,9 @@ export class Variable<T> implements Parsable<T> {
             try {
                 const result = this.parser(state.value);
                 if (this.isSecret) {
-                    ctx.logger.present(k, '<REDACTED>');
+                    ctx.logger.success(k, '<REDACTED>', false);
                 } else {
-                    ctx.logger.present(k, state.value);
+                    ctx.logger.success(k, state.value, false);
                 }
                 return result;
             } catch (error) {
@@ -198,7 +203,7 @@ export class UndiscriminatedSwitcher<T>
         const k = this.name ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
-            ctx.logger.missing(k);
+            ctx.logger.error(k, '', new Error('missing environment variable'));
             return undefined;
         }
         const parser = this._options[k as keyof T];
@@ -249,7 +254,7 @@ export class Switcher<Discriminator extends string, T>
         const k = this.name ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
-            ctx.logger.missing(k);
+            ctx.logger.error(k, '', new Error('missing environment variable'));
             return undefined;
         }
         const parser = this._options[value as keyof T];
@@ -263,7 +268,7 @@ export class Switcher<Discriminator extends string, T>
             );
             return undefined;
         }
-        ctx.logger.present(k, value);
+        ctx.logger.success(k, value, ctx.values[k] === undefined);
         const result = parser.parseKey(ctx, k);
         if (result === undefined) {
             return undefined;
