@@ -10,25 +10,34 @@ export type Context = {
     logger: ILogger;
 };
 
+export type ParseResult<T> =
+    | { type: 'success'; value: T }
+    | { type: 'missing' }
+    | { type: 'error'; error: Error };
+
+export type ParseResults<T> = { [K in keyof T]: ParseResult<T[K]> };
+
 export interface Parsable<T> {
-    parseKey(ctx: Context, key: string): T | undefined;
+    parseKey(ctx: Context, key: string): ParseResult<T>;
     describe(key?: string, prepend?: string): string;
 }
+
+export type Option<T> = { tag: 'some'; value: T } | { tag: 'none' };
 
 /** Variable<T> represents a single environment variable that can be parsed into a value of type T */
 export class Variable<T> implements Parsable<T> {
     public name?: string;
     public isSecret: boolean = false;
-    public defaultValue?: T;
+    public defaultValue: Option<T>;
     public parser: (value: string) => T;
     public _description?: string;
-    public _metavar: (defaultValue?: T) => string;
+    public _metavar: (defaultValue: Option<T>) => string;
     public _logger: ILogger | undefined;
     public constructor(
         public params: {
             name?: string;
             isSecret?: boolean;
-            defaultValue?: T;
+            defaultValue?: Option<T>;
             parser: (value: string) => T;
             description?: string;
             metavar?: (defaultValue?: T) => string;
@@ -36,31 +45,33 @@ export class Variable<T> implements Parsable<T> {
     ) {
         this.name = params.name;
         this.isSecret = params.isSecret ?? false;
-        this.defaultValue = params.defaultValue;
+        this.defaultValue = params.defaultValue ?? { tag: 'none' };
         this.parser = params.parser;
         this._description = params.description;
-        this._metavar = params.metavar ?? (() => '<value>');
+        const metavarFunc = params.metavar;
+        this._metavar =
+            metavarFunc === undefined
+                ? () => '<value>'
+                : (def: Option<T>) =>
+                      def.tag === 'some'
+                          ? metavarFunc(def.value)
+                          : metavarFunc();
     }
-    public parseKey(ctx: Context, key: string): T | undefined {
+    public parseKey(ctx: Context, key: string): ParseResult<T> {
         const k = this.name ?? key;
         const state = ctx.values[k];
         if (state === undefined) {
-            if (this.defaultValue === undefined) {
+            if (this.defaultValue.tag === 'none') {
                 ctx.logger.error(
                     k,
                     undefined,
                     new Error('missing environment variable'),
                 );
-                return undefined;
+                return { type: 'missing' };
             } else {
-                ctx.logger.success(
-                    k,
-                    this.defaultValue === null
-                        ? 'null'
-                        : this.defaultValue.toString(),
-                    true,
-                );
-                return this.defaultValue;
+                const value: T = this.defaultValue.value;
+                ctx.logger.success(k, value === null ? 'null' : value === undefined ? 'undefined' : value.toString(), true);
+                return { type: 'success', value };
             }
         } else {
             state.used = true;
@@ -71,11 +82,11 @@ export class Variable<T> implements Parsable<T> {
                 } else {
                     ctx.logger.success(k, state.value, false);
                 }
-                return result;
+                return { type: 'success', value: result };
             } catch (error) {
                 if (error instanceof Error) {
                     ctx.logger.error(k, state.value, error);
-                    return undefined;
+                    return { type: 'error', error };
                 }
                 throw error;
             }
@@ -88,7 +99,17 @@ export class Variable<T> implements Parsable<T> {
     }
     /** set a default value for the variable */
     public default(defaultValue: T): Variable<T> {
-        return new Variable({ ...this.params, defaultValue });
+        return new Variable({
+            ...this.params,
+            defaultValue: { tag: 'some', value: defaultValue },
+        });
+    }
+    public optional(): Variable<T | undefined> {
+        return new Variable<T | undefined>({
+            ...this.params,
+            defaultValue: { tag: 'some', value: undefined },
+            metavar: () => this._metavar({ tag: 'none' }),
+        });
     }
     /** set a description for the variable */
     public description(description: string): Variable<T> {
@@ -122,23 +143,20 @@ export class ObjectParser<T> implements Parsable<T> {
         public _description?: string,
         public _logger?: ILogger,
     ) {}
-    public parseKey(ctx: Context, _key: string): T | undefined {
-        const result = fromPartial(this.run(ctx));
+    public parseKey(ctx: Context, _key: string): ParseResult<T> {
+        const result = fromParseResults(this.run(ctx));
         if (result instanceof Error) {
-            return undefined;
+            return { type: 'error', error: result };
         }
-        return result;
+        return { type: 'success', value: result };
     }
-    run(ctx: Context): Partial<T> {
-        const result: Partial<T> = {};
+    run(ctx: Context): ParseResults<T> {
+        const result: Partial<ParseResults<T>> = {};
         for (const key in this.fields) {
             const variable = this.fields[key];
-            if (!variable) {
-                continue;
-            }
             result[key] = variable.parseKey(ctx, key);
         }
-        return result;
+        return result as ParseResults<T>;
     }
     public parse(input?: Record<string, string>): T {
         const raw = input ?? process.env;
@@ -146,7 +164,7 @@ export class ObjectParser<T> implements Parsable<T> {
         for (const key in raw) {
             env[key] = { value: raw[key] ?? '', used: false };
         }
-        const final = fromPartial(
+        const final = fromParseResults(
             this.run({
                 values: env,
                 logger: this._logger ?? new ConsoleLogger(),
@@ -171,17 +189,26 @@ export class ObjectParser<T> implements Parsable<T> {
     }
 }
 
-function fromPartial<T>(partial: Partial<T>): T | Error {
+function fromParseResults<T>(partial: ParseResults<T>): T | Error {
     // report an error with a list of missing variables
     const missing = Object.keys(partial).filter(
-        (key) => partial[key as keyof T] === undefined,
+        (key) => partial[key as keyof T].type !== 'success',
     );
     if (missing.length > 0) {
         return Error(
             `Unable to fill the following fields: ${missing.join(', ')}`,
         );
     }
-    return partial as T;
+    // combine the results into a single object
+    const result: Partial<T> = {};
+    for (const key in partial) {
+        const k = key as keyof T;
+        const value = partial[k];
+        if (value.type === 'success') {
+            result[k] = value.value;
+        }
+    }
+    return result as T;
 }
 
 export type Discriminated<Discriminator extends string, T> = {
@@ -199,7 +226,7 @@ export class UndiscriminatedSwitcher<T>
     parseKey(
         ctx: Context,
         key: string,
-    ): { [K in keyof T]: T[K] }[keyof T] | undefined {
+    ): ParseResult<{ [K in keyof T]: T[K] }[keyof T]> {
         const k = this.name ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
@@ -208,14 +235,10 @@ export class UndiscriminatedSwitcher<T>
                 undefined,
                 new Error('missing environment variable'),
             );
-            return undefined;
+            return { type: 'missing' };
         }
         const parser = this._options[k as keyof T];
-        const result = parser.parseKey(ctx, k);
-        if (result === undefined) {
-            return undefined;
-        }
-        return result;
+        return parser.parseKey(ctx, k);
     }
     describe(key?: string): string {
         return describeOptions(
@@ -254,7 +277,7 @@ export class Switcher<Discriminator extends string, T>
     parseKey(
         ctx: Context,
         key: string,
-    ): Discriminated<Discriminator, T> | undefined {
+    ): ParseResult<Discriminated<Discriminator, T>> {
         const k = this.name ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
@@ -263,28 +286,25 @@ export class Switcher<Discriminator extends string, T>
                 undefined,
                 new Error('missing environment variable'),
             );
-            return undefined;
+            return { type: 'missing' };
         }
         const parser = this._options[value as keyof T];
         if (parser === undefined) {
-            ctx.logger.error(
-                k,
-                value,
-                new Error(
-                    `${k} must be one of ${Object.keys(this.options).join(', ')}, but got ${value}`,
-                ),
+            const error = new Error(
+                `${k} must be one of ${Object.keys(this.options).join(', ')}, but got ${value}`,
             );
-            return undefined;
+            ctx.logger.error(k, value, error);
+            return { type: 'error', error };
         }
         ctx.logger.success(k, value, ctx.values[k] === undefined);
         const result = parser.parseKey(ctx, k);
-        if (result === undefined) {
-            return undefined;
-        }
         return {
-            [this.discriminator]: value as keyof T,
-            ...result,
-        } as Discriminated<Discriminator, T>;
+            type: 'success',
+            value: {
+                [this.discriminator]: value as keyof T,
+                ...result,
+            } as Discriminated<Discriminator, T>,
+        };
     }
     describe(contextKey?: string): string {
         return describeOptions(

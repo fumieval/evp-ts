@@ -751,6 +751,23 @@ estree-walker@^3.0.3:
   dependencies:
     "@types/estree" "^1.0.0"
 
+evp-ts@1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/evp-ts/-/evp-ts-1.0.3.tgz#b20e5656a61295980f46d071ec0d123efbce0016"
+  integrity sha512-yRpxZtF7PDcHAf2BGNBNySXIo++nyeYidxyfZOaCORHkGzWmmIGJnSaF4rKGQxGSB48p7ecyecpXXXbndNq4HQ==
+  dependencies:
+    picocolors "^1.0.0"
+    tsup "^8.0.2"
+
+evp-ts@1.0.6:
+  version "1.0.6"
+  resolved "https://registry.yarnpkg.com/evp-ts/-/evp-ts-1.0.6.tgz#394a4fc38f6209a2a124f9b8205a90f00469b480"
+  integrity sha512-kq1DwXcbbYvc6bUnmjqbfdM8K+zkY+e/Rykpt5Dywum1MskHDsc6aOkQJWfp8w009xq6g6DonrFG1+kouDqNug==
+  dependencies:
+    evp-ts "1.0.3"
+    picocolors "^1.0.0"
+    tsup "^8.0.2"
+
 execa@^5.0.0:
   version "5.1.1"
   resolved "https://registry.yarnpkg.com/execa/-/execa-5.1.1.tgz#f80ad9cbf4298f7bd1d4c9555c21e93741c411dd"

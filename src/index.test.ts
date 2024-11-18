@@ -25,6 +25,7 @@ const parser = EVP.object({
         host: EVP.string('MYSQL_HOST').default('localhost'),
         port: EVP.string('MYSQL_PORT').default('3306'),
     }),
+    OPTIONAL: EVP.string().optional(),
 });
 
 type Config = EVP.TypeOf<typeof parser>;
@@ -52,6 +53,7 @@ describe('EVP', () => {
             'DEBUG_MODE=false (default)',
             'MYSQL_HOST=127.0.0.1',
             'MYSQL_PORT=3306 (default)',
+            "OPTIONAL=undefined (default)",
         ]);
     });
     test('reject invalid decimals', () => {
@@ -70,6 +72,7 @@ describe('EVP', () => {
                 'DEBUG_MODE=false (default)',
                 'MYSQL_HOST=localhost (default)',
                 'MYSQL_PORT=3306 (default)',
+                "OPTIONAL=undefined (default)",
             ]);
         }
     });
@@ -84,10 +87,11 @@ describe('EVP', () => {
             expect(logger.logs).toEqual([
                 'API_ENDPOINT=https://example.com',
                 'API_TOKEN=<REDACTED>',
-                'HTTP_PORT= ERROR: missing environment variable',
+                'HTTP_PORT=undefined ERROR: missing environment variable',
                 'DEBUG_MODE=false (default)',
                 'MYSQL_HOST=localhost (default)',
                 'MYSQL_PORT=3306 (default)',
+                "OPTIONAL=undefined (default)",
             ]);
         }
     });
