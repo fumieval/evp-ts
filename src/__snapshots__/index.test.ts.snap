@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EVP > describe 1`] = `
+"API_ENDPOINT=<string>
+API_TOKEN=<string>
+HTTP_PORT=<decimal>
+DEBUG_MODE=false
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+OPTIONAL=<string>"
+`;

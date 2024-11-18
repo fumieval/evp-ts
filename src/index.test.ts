@@ -31,6 +31,9 @@ const parser = EVP.object({
 type Config = EVP.TypeOf<typeof parser>;
 
 describe('EVP', () => {
+    test('describe', () => {
+        expect(parser.describe()).toMatchSnapshot();
+    });
     test('parse successfully', () => {
         const logger = new TestLogger();
         const config: Config = parser.logger(logger).parse({
