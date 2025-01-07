@@ -355,3 +355,25 @@ function commentOut(text: string): string {
         .map((line) => (line.startsWith('#') ? line : `# ${line}`))
         .join('\n');
 }
+
+export class Enum<U extends string, T extends U[]> extends Variable<T[number]> {
+    constructor(private values: T, name?: string) {
+        super({
+            name,
+            parser: (value: string) => {
+                if (!values.includes(value as T[number])) {
+                    throw new Error(
+                        `${name} must be one of ${values.join(', ')}, but got ${value}`,
+                    );
+                }
+                return value as T[number];
+            },
+        });
+    }
+    describe(key: string): string {
+        return `${key}=${this.values.join('|')}`;
+    }
+    options<U1 extends string, T1 extends U1[]>(values: T1): Enum<U1, T1> {
+        return new Enum<U1, T1>(values, this.name);
+    }
+}

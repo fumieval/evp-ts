@@ -3,6 +3,7 @@ import {
     Variable,
     ParsersOf,
     UndiscriminatedSwitcher,
+    Enum,
 } from './mod';
 
 export { Variable, ObjectParser, UndiscriminatedSwitcher, Switcher } from './mod';
@@ -166,3 +167,8 @@ export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {
 export function union(name?: string): UndiscriminatedSwitcher<{}> {
     return new UndiscriminatedSwitcher({}, undefined, name);
 }
+
+function enum_<U extends string>(name?: string): Enum<U, never[]> {
+    return new Enum([], name);
+}
+export { enum_ as enum };

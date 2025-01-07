@@ -35,6 +35,7 @@ const parser = EVP.object({
             DATABASE: EVP.string(),
         }),
     }).discriminator('type'),
+    MODE: EVP.enum().options(['dev', 'prod']),
 });
 
 type Config = EVP.TypeOf<typeof parser>;
