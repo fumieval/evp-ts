@@ -26,6 +26,15 @@ const parser = EVP.object({
         port: EVP.string('MYSQL_PORT').default('3306'),
     }),
     OPTIONAL: EVP.string().optional(),
+    DATA_SOURCE: EVP.union().options({
+        dummy: EVP.object({}),
+        file: EVP.object({
+            DATA_PATH: EVP.string(),
+        }),
+        mysql: EVP.object({
+            DATABASE: EVP.string(),
+        }),
+    }).discriminator('type'),
 });
 
 type Config = EVP.TypeOf<typeof parser>;
@@ -41,10 +50,13 @@ describe('EVP', () => {
             API_TOKEN: 'secret',
             HTTP_PORT: '8080',
             MYSQL_HOST: '127.0.0.1',
+            DATA_SOURCE: 'file',
+            DATA_PATH: '/path/to/data',
         });
         expect(config).toEqual({
             API_ENDPOINT: 'https://example.com',
             API_TOKEN: 'secret',
+            DATA_SOURCE: { type: 'file', DATA_PATH: '/path/to/data' },
             DEBUG_MODE: false,
             HTTP_PORT: 8080,
             mysql: { host: '127.0.0.1', port: '3306' },
@@ -57,6 +69,8 @@ describe('EVP', () => {
             'MYSQL_HOST=127.0.0.1',
             'MYSQL_PORT=3306 (default)',
             "OPTIONAL=undefined (default)",
+            "DATA_SOURCE=file",
+            "DATA_PATH=/path/to/data",
         ]);
     });
     test('reject invalid decimals', () => {
@@ -66,6 +80,7 @@ describe('EVP', () => {
                 API_ENDPOINT: 'https://example.com',
                 API_TOKEN: 'secret',
                 HTTP_PORT: '808o',
+                DATA_SOURCE: 'dummy',
             });
         } catch (_error) {
             expect(logger.logs).toEqual([
@@ -76,6 +91,7 @@ describe('EVP', () => {
                 'MYSQL_HOST=localhost (default)',
                 'MYSQL_PORT=3306 (default)',
                 "OPTIONAL=undefined (default)",
+                "DATA_SOURCE=dummy",
             ]);
         }
     });
@@ -85,6 +101,7 @@ describe('EVP', () => {
             parser.logger(logger).parse({
                 API_ENDPOINT: 'https://example.com',
                 API_TOKEN: 'secret',
+                DATA_SOURCE: 'dummy',
             });
         } catch (_error) {
             expect(logger.logs).toEqual([
@@ -95,6 +112,7 @@ describe('EVP', () => {
                 'MYSQL_HOST=localhost (default)',
                 'MYSQL_PORT=3306 (default)',
                 "OPTIONAL=undefined (default)",
+                "DATA_SOURCE=dummy",
             ]);
         }
     });

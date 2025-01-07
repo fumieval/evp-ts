@@ -298,13 +298,18 @@ export class Switcher<Discriminator extends string, T>
         }
         ctx.logger.success(k, value, ctx.values[k] === undefined);
         const result = parser.parseKey(ctx, k);
-        return {
-            type: 'success',
-            value: {
-                [this.discriminator]: value as keyof T,
-                ...result,
-            } as Discriminated<Discriminator, T>,
-        };
+        const discriminator = { [this.discriminator]: value } as { [P in Discriminator]: keyof T };
+        if (result.type === 'success'){
+            return {
+                type: 'success',
+                value: {
+                    ...discriminator,
+                    ...result.value,
+                },
+            };
+        } else {
+            return result;
+        }
     }
     describe(contextKey?: string): string {
         return describeOptions(
