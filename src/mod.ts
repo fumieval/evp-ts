@@ -129,6 +129,17 @@ export class Variable<T> implements Parsable<T> {
             return binding;
         }
     }
+    /** apply a function to the parsed value.
+     * Note that metavar is not preserved.
+     * */
+    public map<U>(f: (value: T) => U): Variable<U> {
+        return new Variable<U>({
+            ...this.params,
+            parser: (value) => f(this.parser(value)),
+            defaultValue: this.defaultValue.tag === 'some' ? { tag: 'some', value: f(this.defaultValue.value) } : { tag: 'none' },
+            metavar: undefined,
+        });
+    }
 }
 
 /** ParsersOf<T> is a record where each value is a Parsable<T[key]> for each key in T */
