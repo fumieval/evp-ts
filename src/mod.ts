@@ -17,6 +17,12 @@ export type ParseResult<T> =
 
 export type ParseResults<T> = { [K in keyof T]: ParseResult<T[K]> };
 
+export class MissingVariableError extends Error {
+    constructor(public key: string) {
+        super(`missing environment variable`);
+    }
+}
+
 export interface Parser<T> {
     parseKey(ctx: Context, key: string): ParseResult<T>;
     describe(key?: string, prepend?: string): string;
@@ -65,7 +71,7 @@ export class Variable<T> implements Parser<T> {
                 ctx.logger.error(
                     k,
                     undefined,
-                    new Error('missing environment variable'),
+                    new MissingVariableError(k),
                 );
                 return { type: 'missing' };
             } else {
@@ -250,7 +256,7 @@ export class UntaggedSwitcher<T>
             ctx.logger.error(
                 k,
                 undefined,
-                new Error('missing environment variable'),
+                new MissingVariableError(k),
             );
             return { type: 'missing' };
         }
@@ -298,7 +304,7 @@ export class Switcher<Tag extends string, T>
             ctx.logger.error(
                 k,
                 undefined,
-                new Error('missing environment variable'),
+                new MissingVariableError(k),
             );
             return { type: 'missing' };
         }
