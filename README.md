@@ -70,6 +70,7 @@ evp-ts provides additional options for configuring the behavior of environment v
 
 - `.default(value)`: Specifies a default value to use if the environment variable is not set.
 - `.secret()`: Marks the environment variable as sensitive, hiding its value from logs.
+- `.optional()`: Marks the environment variable as optional, allowing it to be missing without causing an error.
 
 ## Generating Help Text
 
@@ -112,9 +113,7 @@ If `DATABASE_BACKEND` is not set, it will use the default option specified by th
 import { EVP } from 'evp-ts';
 
 const parser = EVP.object({
-    DATABASE_BACKEND: EVP.union()
-        .discriminator('backend')
-        .options({
+    DATABASE_BACKEND: EVP.union({
             mysql: EVP.object({
                 host: EVP.string('MYSQL_HOST').default('localhost'),
                 port: EVP.number('MYSQL_PORT').default(3306),
@@ -122,7 +121,7 @@ const parser = EVP.object({
             sqlite: EVP.object({
                 path: EVP.string('SQLITE_PATH'),
             }),
-        })
+        }).tag('backend');
         // .default('sqlite'),
 });
 

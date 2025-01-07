@@ -2,11 +2,11 @@ import {
     ObjectParser,
     Variable,
     ParsersOf,
-    UndiscriminatedSwitcher,
     Enum,
+    UntaggedSwitcher,
 } from './mod';
 
-export { Variable, ObjectParser, UndiscriminatedSwitcher, Switcher } from './mod';
+export { Variable, ObjectParser, Parser } from './mod';
 export { ILogger, ConsoleLogger } from './logger';
 
 /**
@@ -30,12 +30,9 @@ export type TypeOf<T extends ObjectParser<unknown>> = T['_T'];
  * @param name - The name of the variable (optional)
  * @returns A Variable of type string
  */
-export function string(name?: string): Variable<string> {
+export function string(): Variable<string> {
     return new Variable({
-        name,
-        isSecret: false,
         parser: (value: string) => value,
-        defaultValue: undefined,
         metavar: (def?: string) => def ?? '<string>',
     });
 }
@@ -45,17 +42,14 @@ export function string(name?: string): Variable<string> {
  * @param name - The name of the variable (optional)
  * @returns A Variable of type number
  */
-export function decimal(name?: string): Variable<number> {
+export function decimal(): Variable<number> {
     return new Variable({
-        name,
-        isSecret: false,
         parser(value: string) {
             if (!/^\d+$/.test(value)) {
                 throw new Error(`invalid decimal`);
             }
             return parseInt(value);
         },
-        defaultValue: undefined,
         metavar: (def?: number) =>
             def === undefined ? '<decimal>' : def.toString(),
     });
@@ -66,10 +60,8 @@ export function decimal(name?: string): Variable<number> {
  * @param name - The name of the variable (optional)
  * @returns A Variable of type number
  */
-export function number(name?: string): Variable<number> {
+export function number(): Variable<number> {
     return new Variable({
-        name,
-        isSecret: false,
         parser(value: string) {
             const result = Number(value);
             if (isNaN(result) && value !== 'NaN') {
@@ -77,7 +69,6 @@ export function number(name?: string): Variable<number> {
             }
             return result;
         },
-        defaultValue: undefined,
         metavar: (def?: number) =>
             def === undefined ? '<number>' : def.toString(),
     });
@@ -104,10 +95,8 @@ export function number(name?: string): Variable<number> {
  * { DEBUG_MODE: EVP.boolean().default(false) }
  * ```
  */
-export function boolean(name?: string): Variable<boolean> {
+export function boolean(): Variable<boolean> {
     return new Variable({
-        name,
-        isSecret: false,
         parser: (value: string) => {
             switch (value.toLowerCase()) {
                 case 'true':
@@ -124,7 +113,6 @@ export function boolean(name?: string): Variable<boolean> {
                     throw new Error(`Invalid boolean value`);
             }
         },
-        defaultValue: undefined,
         metavar: (def?: boolean) =>
             def === undefined ? 'boolean' : def.toString(),
     });
@@ -164,11 +152,11 @@ export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {
  *   .discriminator('type');
  * ```
  */
-export function union(name?: string): UndiscriminatedSwitcher<{}> {
-    return new UndiscriminatedSwitcher({}, undefined, name);
+export function union<T>(options: ParsersOf<T>): UntaggedSwitcher<T> {
+    return new UntaggedSwitcher(options, undefined);
 }
 
-function enum_<U extends string>(name?: string): Enum<U, never[]> {
-    return new Enum([], name);
+function enum_<U extends string, T extends U[]>(values: T): Enum<U, T> {
+    return new Enum(values);
 }
 export { enum_ as enum };

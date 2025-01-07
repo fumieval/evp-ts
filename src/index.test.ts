@@ -22,11 +22,11 @@ const parser = EVP.object({
     HTTP_PORT: EVP.decimal(),
     DEBUG_MODE: EVP.boolean().default(false),
     mysql: EVP.object({
-        host: EVP.string('MYSQL_HOST').default('localhost'),
-        port: EVP.string('MYSQL_PORT').default('3306'),
+        host: EVP.string().env('MYSQL_HOST').default('localhost'),
+        port: EVP.string().env('MYSQL_PORT').default('3306'),
     }),
     OPTIONAL: EVP.string().optional(),
-    DATA_SOURCE: EVP.union().options({
+    DATA_SOURCE: EVP.union({
         dummy: EVP.object({}),
         file: EVP.object({
             DATA_PATH: EVP.string(),
@@ -34,8 +34,7 @@ const parser = EVP.object({
         mysql: EVP.object({
             DATABASE: EVP.string(),
         }),
-    }).discriminator('type'),
-    MODE: EVP.enum().options(['dev', 'prod']),
+    }).tag('type'),
 });
 
 type Config = EVP.TypeOf<typeof parser>;

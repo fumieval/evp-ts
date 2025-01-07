@@ -17,7 +17,7 @@ export type ParseResult<T> =
 
 export type ParseResults<T> = { [K in keyof T]: ParseResult<T[K]> };
 
-export interface Parsable<T> {
+export interface Parser<T> {
     parseKey(ctx: Context, key: string): ParseResult<T>;
     describe(key?: string, prepend?: string): string;
 }
@@ -25,8 +25,8 @@ export interface Parsable<T> {
 export type Option<T> = { tag: 'some'; value: T } | { tag: 'none' };
 
 /** Variable<T> represents a single environment variable that can be parsed into a value of type T */
-export class Variable<T> implements Parsable<T> {
-    public name?: string;
+export class Variable<T> implements Parser<T> {
+    public envName?: string;
     public isSecret: boolean = false;
     public defaultValue: Option<T>;
     public parser: (value: string) => T;
@@ -35,7 +35,7 @@ export class Variable<T> implements Parsable<T> {
     public _logger: ILogger | undefined;
     public constructor(
         public params: {
-            name?: string;
+            envName?: string;
             isSecret?: boolean;
             defaultValue?: Option<T>;
             parser: (value: string) => T;
@@ -43,7 +43,7 @@ export class Variable<T> implements Parsable<T> {
             metavar?: (defaultValue?: T) => string;
         },
     ) {
-        this.name = params.name;
+        this.envName = params.envName;
         this.isSecret = params.isSecret ?? false;
         this.defaultValue = params.defaultValue ?? { tag: 'none' };
         this.parser = params.parser;
@@ -58,7 +58,7 @@ export class Variable<T> implements Parsable<T> {
                           : metavarFunc();
     }
     public parseKey(ctx: Context, key: string): ParseResult<T> {
-        const k = this.name ?? key;
+        const k = this.envName ?? key;
         const state = ctx.values[k];
         if (state === undefined) {
             if (this.defaultValue.tag === 'none') {
@@ -119,9 +119,15 @@ export class Variable<T> implements Parsable<T> {
     public metavar(metavar: string): Variable<T> {
         return new Variable({ ...this.params, metavar: () => metavar });
     }
+
+    /** read the specified environment variable */
+    public env(name: string): Variable<T> {
+        return new Variable({ ...this.params, envName: name });
+    }
+
     /** dotenv-style description of the variable */
     public describe(key?: string): string {
-        let k = this.name ?? key;
+        let k = this.envName ?? key;
         const binding = `${k}=${this._metavar(this.defaultValue)}`;
         if (this._description !== undefined) {
             return `# ${this._description}\n${binding}`;
@@ -142,12 +148,12 @@ export class Variable<T> implements Parsable<T> {
     }
 }
 
-/** ParsersOf<T> is a record where each value is a Parsable<T[key]> for each key in T */
+/** ParsersOf<T> is a record where each value is a Parser<T[key]> for each key in T */
 export type ParsersOf<T> = {
-    [K in keyof T]: Parsable<T[K]>;
+    [K in keyof T]: Parser<T[K]>;
 };
 
-export class ObjectParser<T> implements Parsable<T> {
+export class ObjectParser<T> implements Parser<T> {
     readonly _T!: T;
     public constructor(
         public fields: ParsersOf<T>,
@@ -222,23 +228,23 @@ function fromParseResults<T>(partial: ParseResults<T>): T | Error {
     return result as T;
 }
 
-export type Discriminated<Discriminator extends string, T> = {
-    [K in keyof T]: { [P in Discriminator]: K } & T[K];
+export type Tagged<Tag extends string, T> = {
+    [K in keyof T]: { [P in Tag]: K } & T[K];
 }[keyof T];
 
-export class UndiscriminatedSwitcher<T>
-    implements Parsable<{ [K in keyof T]: T[K] }[keyof T]>
+export class UntaggedSwitcher<T>
+    implements Parser<{ [K in keyof T]: T[K] }[keyof T]>
 {
     constructor(
         private _options: ParsersOf<T>,
         private _default?: keyof T,
-        private name?: string,
+        private envName?: string,
     ) {}
     parseKey(
         ctx: Context,
         key: string,
     ): ParseResult<{ [K in keyof T]: T[K] }[keyof T]> {
-        const k = this.name ?? key;
+        const k = this.envName ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
             ctx.logger.error(
@@ -253,43 +259,40 @@ export class UndiscriminatedSwitcher<T>
     }
     describe(key?: string): string {
         return describeOptions(
-            this.name ?? key ?? '',
+            this.envName ?? key ?? '',
             this._options,
             this._default,
         );
     }
-    options<U extends T>(options: ParsersOf<U>): UndiscriminatedSwitcher<U> {
-        return new UndiscriminatedSwitcher(options, this._default, this.name);
+    default(key: keyof T): UntaggedSwitcher<T> {
+        return new UntaggedSwitcher(this._options, key, this.envName);
     }
-    default(key: keyof T): UndiscriminatedSwitcher<T> {
-        return new UndiscriminatedSwitcher(this._options, key, this.name);
-    }
-    discriminator<Discriminator extends string>(
-        discriminator: Discriminator,
-    ): Switcher<Discriminator, T> {
+    tag<Tag extends string>(
+        tag: Tag,
+    ): Switcher<Tag, T> {
         return new Switcher(
-            discriminator,
+            tag,
             this._options,
             this._default,
-            this.name,
+            this.envName,
         );
     }
 }
 
-export class Switcher<Discriminator extends string, T>
-    implements Parsable<Discriminated<Discriminator, T>>
+export class Switcher<Tag extends string, T>
+    implements Parser<Tagged<Tag, T>>
 {
     constructor(
-        private discriminator: Discriminator,
+        private tag: Tag,
         private _options: ParsersOf<T>,
         private _default?: keyof T,
-        private name?: string,
+        private envName?: string,
     ) {}
     parseKey(
         ctx: Context,
         key: string,
-    ): ParseResult<Discriminated<Discriminator, T>> {
-        const k = this.name ?? key;
+    ): ParseResult<Tagged<Tag, T>> {
+        const k = this.envName ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
             ctx.logger.error(
@@ -309,12 +312,12 @@ export class Switcher<Discriminator extends string, T>
         }
         ctx.logger.success(k, value, ctx.values[k] === undefined);
         const result = parser.parseKey(ctx, k);
-        const discriminator = { [this.discriminator]: value } as { [P in Discriminator]: keyof T };
+        const tag = { [this.tag]: value } as { [P in Tag]: keyof T };
         if (result.type === 'success'){
             return {
                 type: 'success',
                 value: {
-                    ...discriminator,
+                    ...tag,
                     ...result.value,
                 },
             };
@@ -324,21 +327,21 @@ export class Switcher<Discriminator extends string, T>
     }
     describe(contextKey?: string): string {
         return describeOptions(
-            this.name ?? contextKey ?? '',
+            this.envName ?? contextKey ?? '',
             this._options,
             this._default,
         );
     }
-    options<U extends T>(options: ParsersOf<U>): Switcher<Discriminator, U> {
+    options<U extends T>(options: ParsersOf<U>): Switcher<Tag, U> {
         return new Switcher(
-            this.discriminator,
+            this.tag,
             options,
             this._default,
-            this.name,
+            this.envName,
         );
     }
-    default(key: keyof T): Switcher<Discriminator, T> {
-        return new Switcher(this.discriminator, this._options, key, this.name);
+    default(key: keyof T): Switcher<Tag, T> {
+        return new Switcher(this.tag, this._options, key, this.envName);
     }
 }
 
@@ -368,13 +371,12 @@ function commentOut(text: string): string {
 }
 
 export class Enum<U extends string, T extends U[]> extends Variable<T[number]> {
-    constructor(private values: T, name?: string) {
+    constructor(private values: T) {
         super({
-            name,
             parser: (value: string) => {
                 if (!values.includes(value as T[number])) {
                     throw new Error(
-                        `${name} must be one of ${values.join(', ')}, but got ${value}`,
+                        `must be one of ${values.join(', ')}, but got ${value}`,
                     );
                 }
                 return value as T[number];
@@ -383,8 +385,5 @@ export class Enum<U extends string, T extends U[]> extends Variable<T[number]> {
     }
     describe(key: string): string {
         return `${key}=${this.values.join('|')}`;
-    }
-    options<U1 extends string, T1 extends U1[]>(values: T1): Enum<U1, T1> {
-        return new Enum<U1, T1>(values, this.name);
     }
 }
