@@ -34,7 +34,7 @@ const parser = EVP.object({
         mysql: EVP.object({
             DATABASE: EVP.string(),
         }),
-    }).tag('type'),
+    }).tag('type').default('dummy')
 });
 
 type Config = EVP.TypeOf<typeof parser>;

@@ -7,9 +7,8 @@ HTTP_PORT=<decimal>
 DEBUG_MODE=false
 MYSQL_HOST=localhost
 MYSQL_PORT=3306
-OPTIONAL=<string>
-# DATA_SOURCE=dummy
-# 
+# OPTIONAL=<string>
+DATA_SOURCE=dummy
 
 # DATA_SOURCE=file
 # DATA_PATH=<string>

@@ -205,10 +205,10 @@ export class ObjectParser<T> implements Parser<T> {
         return final;
     }
     public describe(_key?: string, prepend?: string): string {
-        const header = this._description ? `# ${this._description}\n` : '';
-        return `${header}${prepend ?? ''}${Object.keys(this.fields)
-            .map((k) => this.fields[k as keyof T].describe(k))
-            .join('\n')}`;
+        const header = this._description ? `# ${this._description}` : undefined;
+        const fields = Object.keys(this.fields)
+            .map((k) => this.fields[k as keyof T].describe(k));
+        return [header, prepend, ...fields].filter(x => x !== undefined).join('\n');
     }
     public description(description: string): ObjectParser<T> {
         return new ObjectParser(this.fields, description, this._logger);
@@ -365,7 +365,7 @@ function describeOptions<T>(
     return Object.keys(options)
         .map((k) => {
             const option = options[k as keyof T];
-            const desc = option.describe(k, `${key}=${k}\n`);
+            const desc = option.describe(k, `${key}=${k}`);
             if (k === defaultOption) {
                 return desc;
             } else {
