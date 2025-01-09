@@ -4,6 +4,9 @@ import {
     ParsersOf,
     Enum,
     UntaggedSwitcher,
+    BooleanVariable,
+    NumericVariable,
+    StringVariable,
 } from './mod';
 
 export { Variable, ObjectParser, Parser } from './mod';
@@ -31,28 +34,7 @@ export type TypeOf<T extends ObjectParser<unknown>> = T['_T'];
  * @returns A Variable of type string
  */
 export function string(): Variable<string> {
-    return new Variable({
-        parser: (value: string) => value,
-        metavar: (def?: string) => def ?? '<string>',
-    });
-}
-
-/**
- * Parser for decimal integers
- * @param name - The name of the variable (optional)
- * @returns A Variable of type number
- */
-export function decimal(): Variable<number> {
-    return new Variable({
-        parser(value: string) {
-            if (!/^\d+$/.test(value)) {
-                throw new Error(`invalid decimal`);
-            }
-            return parseInt(value);
-        },
-        metavar: (def?: number) =>
-            def === undefined ? '<decimal>' : def.toString(),
-    });
+    return new StringVariable();
 }
 
 /**
@@ -61,17 +43,7 @@ export function decimal(): Variable<number> {
  * @returns A Variable of type number
  */
 export function number(): Variable<number> {
-    return new Variable({
-        parser(value: string) {
-            const result = Number(value);
-            if (isNaN(result) && value !== 'NaN') {
-                throw new Error(`invalid number`);
-            }
-            return result;
-        },
-        metavar: (def?: number) =>
-            def === undefined ? '<number>' : def.toString(),
-    });
+    return new NumericVariable();
 }
 
 /**
@@ -96,26 +68,7 @@ export function number(): Variable<number> {
  * ```
  */
 export function boolean(): Variable<boolean> {
-    return new Variable({
-        parser: (value: string) => {
-            switch (value.toLowerCase()) {
-                case 'true':
-                case 'yes':
-                case 'on':
-                case '1':
-                    return true;
-                case 'false':
-                case 'no':
-                case 'off':
-                case '0':
-                    return false;
-                default:
-                    throw new Error(`Invalid boolean value`);
-            }
-        },
-        metavar: (def?: boolean) =>
-            def === undefined ? 'boolean' : def.toString(),
-    });
+    return new BooleanVariable();
 }
 
 /**

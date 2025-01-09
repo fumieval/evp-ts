@@ -30,39 +30,24 @@ export interface Parser<T> {
 
 export type Option<T> = { tag: 'some'; value: T } | { tag: 'none' };
 
+function fromOption<T, U>(option: Option<T>, none: U, some: (value: T) => U, ): U {
+    if (option.tag === 'some') {
+        return some(option.value);
+    } else {
+        return none;
+    }
+}
+
 /** Variable<T> represents a single environment variable that can be parsed into a value of type T */
-export class Variable<T> implements Parser<T> {
+export abstract class Variable<T> implements Parser<T> {
     public envName?: string;
     public isSecret: boolean = false;
-    public defaultValue: Option<T>;
-    public parser: (value: string) => T;
+    public defaultValue: Option<T> = { tag: 'none' };
     public _description?: string;
-    public _metavar: (defaultValue: Option<T>) => string;
     public _logger: ILogger | undefined;
-    public constructor(
-        public params: {
-            envName?: string;
-            isSecret?: boolean;
-            defaultValue?: Option<T>;
-            parser: (value: string) => T;
-            description?: string;
-            metavar?: (defaultValue?: T) => string;
-        },
-    ) {
-        this.envName = params.envName;
-        this.isSecret = params.isSecret ?? false;
-        this.defaultValue = params.defaultValue ?? { tag: 'none' };
-        this.parser = params.parser;
-        this._description = params.description;
-        const metavarFunc = params.metavar;
-        this._metavar =
-            metavarFunc === undefined
-                ? () => '<value>'
-                : (def: Option<T>) =>
-                      def.tag === 'some'
-                          ? metavarFunc(def.value)
-                          : metavarFunc();
-    }
+    public forceMetavar?: string;
+    abstract parse(value: string): T;
+    abstract getMetavar(): string;
     public parseKey(ctx: Context, key: string): ParseResult<T> {
         const k = this.envName ?? key;
         const state = ctx.values[k];
@@ -82,7 +67,7 @@ export class Variable<T> implements Parser<T> {
         } else {
             state.used = true;
             try {
-                const result = this.parser(state.value);
+                const result = this.parse(state.value);
                 if (this.isSecret) {
                     ctx.logger.success(k, '<REDACTED>', false);
                 } else {
@@ -101,40 +86,38 @@ export class Variable<T> implements Parser<T> {
 
     /** mark the variable as a secret, so its value will be redacted in logs */
     public secret(): Variable<T> {
-        return new Variable({ ...this.params, isSecret: true });
+        this.isSecret = true;
+        return this;
     }
     /** set a default value for the variable */
     public default(defaultValue: T): Variable<T> {
-        return new Variable({
-            ...this.params,
-            defaultValue: { tag: 'some', value: defaultValue },
-        });
+        this.defaultValue = { tag: 'some', value: defaultValue };
+        return this;
     }
     public optional(): Variable<T | undefined> {
-        return new Variable<T | undefined>({
-            ...this.params,
-            defaultValue: { tag: 'some', value: undefined },
-            metavar: () => this._metavar({ tag: 'none' }),
-        });
+        return new OptionalVariable(this);
     }
     /** set a description for the variable */
     public description(description: string): Variable<T> {
-        return new Variable({ ...this.params, description });
+        this._description = description;
+        return this;
     }
     /** set a metavariable for the variable */
     public metavar(metavar: string): Variable<T> {
-        return new Variable({ ...this.params, metavar: () => metavar });
+        this.forceMetavar = metavar;
+        return this;
     }
 
     /** read the specified environment variable */
     public env(name: string): Variable<T> {
-        return new Variable({ ...this.params, envName: name });
+        this.envName = name;
+        return this;
     }
 
     /** dotenv-style description of the variable */
     public describe(key?: string): string {
         let k = this.envName ?? key;
-        const binding = `${k}=${this._metavar(this.defaultValue)}`;
+        const binding = `${k}=${this.forceMetavar ?? this.getMetavar()}`;
         if (this._description !== undefined) {
             return `# ${this._description}\n${binding}`;
         } else {
@@ -145,12 +128,35 @@ export class Variable<T> implements Parser<T> {
      * Note that metavar is not preserved.
      * */
     public map<U>(f: (value: T) => U): Variable<U> {
-        return new Variable<U>({
-            ...this.params,
-            parser: (value) => f(this.parser(value)),
-            defaultValue: this.defaultValue.tag === 'some' ? { tag: 'some', value: f(this.defaultValue.value) } : { tag: 'none' },
-            metavar: undefined,
-        });
+        return new MapVariable(this, f);
+    }
+}
+
+export class OptionalVariable<T, V extends Variable<T>> extends Variable<T | undefined> {
+    constructor(private variable: V) {
+        super();
+        this.defaultValue = { tag: 'some', value: undefined };
+    }
+    parse(value: string): T | undefined {
+        return this.variable.parse(value);
+    }
+    getMetavar(): string {
+        return this.variable.getMetavar();
+    }
+    public describe(key?: string): string {
+        return `# ${this.variable.describe(key)}`;
+    }
+}
+
+export class MapVariable<T, U, V extends Variable<T>> extends Variable<U> {
+    constructor(private variable: V, private f: (value: T) => U) {
+        super();
+    }
+    parse(value: string): U {
+        return this.f(this.variable.parse(value));
+    }
+    getMetavar(): string {
+        return this.variable.getMetavar();
     }
 }
 
@@ -378,18 +384,54 @@ function commentOut(text: string): string {
 
 export class Enum<U extends string, T extends U[]> extends Variable<T[number]> {
     constructor(private values: T) {
-        super({
-            parser: (value: string) => {
-                if (!values.includes(value as T[number])) {
-                    throw new Error(
-                        `must be one of ${values.join(', ')}, but got ${value}`,
-                    );
-                }
-                return value as T[number];
-            },
-        });
+        super();
     }
-    describe(key: string): string {
-        return `${key}=${this.values.join('|')}`;
+    parse(value: string): T[number] {
+        if (!this.values.includes(value as T[number])) {
+            throw new Error(
+                `must be one of ${this.values.join(', ')}, but got ${value}`,
+            );
+        }
+        return value as T[number];
+    }
+    getMetavar(): string {
+        return this.values.join('|');
+    }
+}
+
+export class NumericVariable extends Variable<number> {
+    parse(value: string): number {
+        const num = parseFloat(value);
+        if (isNaN(num)) {
+            throw new Error('Invalid number');
+        }
+        return num;
+    }
+    getMetavar(): string {
+        return '<number>';
+    }
+}
+
+export class StringVariable extends Variable<string> {
+    parse(value: string): string {
+        return value;
+    }
+    getMetavar(): string {
+        return fromOption(this.defaultValue, '<string>', (value) => value);
+    }
+}
+
+export class BooleanVariable extends Variable<boolean> {
+    parse(value: string): boolean {
+        if (['true', 'yes', 'on', '1'].includes(value.toLowerCase())) {
+            return true;
+        }
+        if (['false', 'no', 'off', '0'].includes(value.toLowerCase())) {
+            return false;
+        }
+        throw new Error('Invalid boolean');
+    }
+    getMetavar(): string {
+        return fromOption(this.defaultValue, 'true|false', (value) => value.toString());
     }
 }

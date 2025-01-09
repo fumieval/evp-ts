@@ -19,7 +19,7 @@ class TestLogger implements ILogger {
 const parser = EVP.object({
     API_ENDPOINT: EVP.string(),
     API_TOKEN: EVP.string().secret(),
-    HTTP_PORT: EVP.decimal(),
+    HTTP_PORT: EVP.number().metavar('<decimal>'),
     DEBUG_MODE: EVP.boolean().default(false),
     mysql: EVP.object({
         host: EVP.string().env('MYSQL_HOST').default('localhost'),
