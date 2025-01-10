@@ -195,8 +195,11 @@ export class ObjectParser<T> implements Parser<T> {
     public parse(input?: Record<string, string>): T {
         const raw = input ?? process.env;
         const env: Record<string, State> = {};
-        for (const key in raw) {
-            env[key] = { value: raw[key] ?? '', used: false };
+        for (const [key, value] of Object.entries(raw)) {
+            if (value === undefined) {
+                continue;
+            }
+            env[key] = { value, used: false };
         }
         const final = fromParseResults(
             this.run({
