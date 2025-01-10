@@ -1,0 +1,19 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Logger > error > should log errors correctly 1`] = `
+[MockFunction error] {
+  "calls": [
+    [
+      "[EVP] KEY=value ERROR: test error",
+    ],
+  ],
+  "results": [
+    {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`Logger > log > should log messages correctly 1`] = `[MockFunction log]`;

@@ -140,7 +140,12 @@ export class OptionalVariable<T, V extends Variable<T>> extends Variable<T | und
     parse(value: string): T | undefined {
         return this.variable.parse(value);
     }
+    metavar(metavar: string): OptionalVariable<T, V> {
+        this.variable.metavar(metavar);
+        return this;
+    }
     getMetavar(): string {
+        /* v8 ignore next 2 */
         return this.variable.getMetavar();
     }
     public describe(key?: string): string {
@@ -266,7 +271,14 @@ export class UntaggedSwitcher<T>
             );
             return { type: 'missing' };
         }
-        const parser = this._options[k as keyof T];
+        const parser = this._options[value as keyof T];
+        if (parser === undefined) {
+            const error = new Error(
+                `it must be ${serialComma(Object.keys(this._options))}, but got ${value}`,
+            );
+            ctx.logger.error(k, value, error);
+            return { type: 'error', error };
+        }
         return parser.parseKey(ctx, k);
     }
     describe(key?: string): string {
@@ -317,7 +329,7 @@ export class Switcher<Tag extends string, T>
         const parser = this._options[value as keyof T];
         if (parser === undefined) {
             const error = new Error(
-                `${k} must be one of ${Object.keys(this.options).join(', ')}, but got ${value}`,
+                `it must be ${serialComma(Object.keys(this._options))}, but got ${value}`,
             );
             ctx.logger.error(k, value, error);
             return { type: 'error', error };
@@ -342,14 +354,6 @@ export class Switcher<Tag extends string, T>
             this.envName ?? contextKey ?? '',
             this._options,
             this._default,
-        );
-    }
-    options<U extends T>(options: ParsersOf<U>): Switcher<Tag, U> {
-        return new Switcher(
-            this.tag,
-            options,
-            this._default,
-            this.envName,
         );
     }
     default(key: keyof T): Switcher<Tag, T> {
@@ -382,6 +386,13 @@ function commentOut(text: string): string {
         .join('\n');
 }
 
+function serialComma(items: string[]): string {
+    if (items.length === 1) return items[0];
+    if (items.length === 2) return items.join(' or ');
+    const last = items.pop();
+    return `${items.join(', ')}, or ${last}`;
+}
+
 export class Enum<U extends string, T extends U[]> extends Variable<T[number]> {
     constructor(private values: T) {
         super();
@@ -389,7 +400,7 @@ export class Enum<U extends string, T extends U[]> extends Variable<T[number]> {
     parse(value: string): T[number] {
         if (!this.values.includes(value as T[number])) {
             throw new Error(
-                `must be one of ${this.values.join(', ')}, but got ${value}`,
+                `it must be ${serialComma(this.values)}, but got ${value}`,
             );
         }
         return value as T[number];
@@ -403,12 +414,12 @@ export class NumericVariable extends Variable<number> {
     parse(value: string): number {
         const num = parseFloat(value);
         if (isNaN(num)) {
-            throw new Error('Invalid number');
+            throw new Error('invalid number');
         }
         return num;
     }
     getMetavar(): string {
-        return '<number>';
+        return fromOption(this.defaultValue, '<number>', (value) => value.toString());
     }
 }
 
@@ -429,7 +440,7 @@ export class BooleanVariable extends Variable<boolean> {
         if (['false', 'no', 'off', '0'].includes(value.toLowerCase())) {
             return false;
         }
-        throw new Error('Invalid boolean');
+        throw new Error('invalid boolean');
     }
     getMetavar(): string {
         return fromOption(this.defaultValue, 'true|false', (value) => value.toString());

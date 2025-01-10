@@ -1,5 +1,11 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`EVP > default values 1`] = `
+"FOO=undefined
+BAR=null
+BAZ="
+`;
+
 exports[`EVP > describe 1`] = `
 "API_ENDPOINT=<string>
 API_TOKEN=<string>
@@ -14,5 +20,35 @@ DATA_SOURCE=dummy
 # DATA_PATH=<string>
 
 # DATA_SOURCE=mysql
+# DATABASE=<string>
+MODE=development|production"
+`;
+
+exports[`EVP > describe object 1`] = `
+"# foo parser
+# foo
+FOO=<string>"
+`;
+
+exports[`EVP > handle default untagged union 1`] = `
+"DATA_SOURCE=dummy
+
+# DATA_SOURCE=mysql
 # DATABASE=<string>"
+`;
+
+exports[`EVP > map 1`] = `"FOO=<string>"`;
+
+exports[`EVP > metavariables 1`] = `
+"NUM=<number>
+HOST=localhost
+PORT=8080
+DB_HOST=<host>
+DB_PORT=<port>
+DEBUG_MODE=false"
+`;
+
+exports[`EVP > optional 1`] = `
+"# FOO=foo
+# BAR=bar"
 `;
