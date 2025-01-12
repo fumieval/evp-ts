@@ -89,6 +89,10 @@ export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {
     return new ObjectParser(fields);
 }
 
+export function emptyObject(): ObjectParser<Record<string, never>> {
+    return new ObjectParser({});
+}
+
 /**
  * Create a dynamically-switched parser depending on the value.
  * Use `.options()` to add options, and use `.discriminator()` to specify the field to propagate the switching value.

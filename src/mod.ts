@@ -268,8 +268,10 @@ export type TaggedUnion<Tag extends string, T> = {
     [K in keyof T]: { [P in Tag]: K } & T[K];
 }[keyof T];
 
+export type UntaggedUnion<T> = { [K in keyof T]: T[K] }[keyof T];
+
 export class UntaggedUnionParser<T>
-    extends VariableLike<{ [K in keyof T]: T[K] }[keyof T], Extract<keyof T, string>>
+    extends VariableLike<UntaggedUnion<T>, Extract<keyof T, string>>
 {
     constructor(
         private _options: ParsersOf<T>,

@@ -267,7 +267,7 @@ describe('EVP', () => {
         try {
             const parser = EVP.object({
                 DATA_SOURCE: EVP.union({
-                    dummy: EVP.object({}),
+                    dummy: EVP.emptyObject(),
                     mysql: EVP.object({
                         DATABASE: EVP.string(),
                     }),
@@ -288,7 +288,7 @@ describe('EVP', () => {
         try {
             const parser = EVP.object({
                 DATA_SOURCE: EVP.union({
-                    dummy: EVP.object({}),
+                    dummy: EVP.emptyObject(),
                     mysql: EVP.object({
                         DATABASE: EVP.string(),
                     }),
