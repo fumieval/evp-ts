@@ -37,15 +37,58 @@ function fromOption<T, U>(
 }
 
 /** Variable<T> represents a single environment variable that can be parsed into a value of type T */
-export abstract class Variable<T> implements Parser<T> {
+export abstract class VariableLike<T> implements Parser<T> {
     public envName?: string;
     public isSecret: boolean = false;
     public defaultValue: Option<T> = { tag: 'none' };
     public _description?: string;
     public _logger: ILogger | undefined;
     public forceMetavar?: string;
-    abstract parse(value: string): T;
     abstract getMetavar(): string;
+    abstract parseKey(ctx: Context, key: string): ParseResult<T>;
+
+    /** mark the variable as a secret, so its value will be redacted in logs */
+    public secret(): this {
+        this.isSecret = true;
+        return this;
+    }
+    /** set a default value for the variable */
+    public default(defaultValue: T): this {
+        this.defaultValue = { tag: 'some', value: defaultValue };
+        return this;
+    }
+
+    /** set a description for the variable */
+    public description(description: string): this {
+        this._description = description;
+        return this;
+    }
+    /** set a metavariable for the variable */
+    public metavar(metavar: string): this {
+        this.forceMetavar = metavar;
+        return this;
+    }
+
+    /** read the specified environment variable */
+    public env(name: string): this {
+        this.envName = name;
+        return this;
+    }
+
+    /** dotenv-style description of the variable */
+    public describe(key?: string): string {
+        let k = this.envName ?? key;
+        const binding = `${k}=${this.forceMetavar ?? this.getMetavar()}`;
+        if (this._description !== undefined) {
+            return `# ${this._description}\n${binding}`;
+        } else {
+            return binding;
+        }
+    }
+}
+
+export abstract class Variable<T> extends VariableLike<T> {
+    abstract parse(value: string): T;
     public parseKey(ctx: Context, key: string): ParseResult<T> {
         const envName = this.envName ?? key;
         const state = ctx.values[envName];
@@ -88,51 +131,15 @@ export abstract class Variable<T> implements Parser<T> {
         }
     }
 
-    /** mark the variable as a secret, so its value will be redacted in logs */
-    public secret(): Variable<T> {
-        this.isSecret = true;
-        return this;
-    }
-    /** set a default value for the variable */
-    public default(defaultValue: T): Variable<T> {
-        this.defaultValue = { tag: 'some', value: defaultValue };
-        return this;
-    }
-    public optional(): Variable<T | undefined> {
-        return new OptionalVariable(this);
-    }
-    /** set a description for the variable */
-    public description(description: string): Variable<T> {
-        this._description = description;
-        return this;
-    }
-    /** set a metavariable for the variable */
-    public metavar(metavar: string): Variable<T> {
-        this.forceMetavar = metavar;
-        return this;
-    }
-
-    /** read the specified environment variable */
-    public env(name: string): Variable<T> {
-        this.envName = name;
-        return this;
-    }
-
-    /** dotenv-style description of the variable */
-    public describe(key?: string): string {
-        let k = this.envName ?? key;
-        const binding = `${k}=${this.forceMetavar ?? this.getMetavar()}`;
-        if (this._description !== undefined) {
-            return `# ${this._description}\n${binding}`;
-        } else {
-            return binding;
-        }
-    }
     /** apply a function to the parsed value.
      * Note that metavar is not preserved.
      * */
     public map<U>(f: (value: T) => U): Variable<U> {
         return new MapVariable(this, f);
+    }
+
+    public optional(): Variable<T | undefined> {
+        return new OptionalVariable(this);
     }
 }
 
@@ -146,7 +153,7 @@ export class OptionalVariable<T, V extends Variable<T>> extends Variable<
     parse(value: string): T | undefined {
         return this.variable.parse(value);
     }
-    metavar(metavar: string): OptionalVariable<T, V> {
+    metavar(metavar: string): this {
         this.variable.metavar(metavar);
         return this;
     }

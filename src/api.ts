@@ -33,7 +33,7 @@ export type TypeOf<T extends ObjectParser<unknown>> = T['_T'];
  * @param name - The name of the variable (optional)
  * @returns A Variable of type string
  */
-export function string(): Variable<string> {
+export function string(): StringVariable {
     return new StringVariable();
 }
 
@@ -42,7 +42,7 @@ export function string(): Variable<string> {
  * @param name - The name of the variable (optional)
  * @returns A Variable of type number
  */
-export function number(): Variable<number> {
+export function number(): NumericVariable {
     return new NumericVariable();
 }
 
