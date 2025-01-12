@@ -1,18 +1,19 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import { EVP } from '.';
 import { ILogger } from './logger';
+import * as winston from 'winston';
 
 class TestLogger implements ILogger {
     public logs: string[] = [];
     public constructor() {
         this.logs = [];
     }
-    public success(key: string, value: string, useDefault: boolean): void {
-        this.logs.push(`${key}=${value}${useDefault ? ' (default)' : ''}`);
+    public info(message: string): void {
+        this.logs.push(message);
     }
-    public error(key: string, value: string, error: Error): void {
-        this.logs.push(`${key}=${value} ERROR: ${error.message}`);
+    public error(message: string): void {
+        this.logs.push(message);
     }
 }
 
@@ -454,5 +455,27 @@ describe('EVP', () => {
             BAZ: '',
         });
         expect(parser.describe()).toMatchSnapshot();
+    });
+
+    test("winston compatibility", () => {
+        const parser = EVP.object({
+            LOG_LEVEL: EVP.enum(['error', 'warn', 'info', 'debug']).default('info'),
+            FOO: EVP.enum(['foo', 'bar', 'baz']),
+        });
+        const logger = winston.createLogger({
+            level: 'info',
+            format: winston.format.json(),
+            transports: [
+                new winston.transports.Console({
+                    format: winston.format.simple(),
+                }),
+            ],
+        });
+        const winstonSpy = vi.spyOn(logger, 'log');
+        try {
+            parser.logger(logger).parse({});
+        } catch (error) {
+        }
+        expect(winstonSpy.mock.calls).toMatchSnapshot();
     });
 });

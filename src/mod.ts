@@ -1,4 +1,4 @@
-import { ILogger, ConsoleLogger } from './logger';
+import { ILogger, ConsoleLogger, logMissingVariable } from './logger';
 
 export type State = {
     value: string;
@@ -17,12 +17,6 @@ export type ParseResult<T> =
 
 export type ParseResults<T> = { [K in keyof T]: ParseResult<T[K]> };
 
-export class MissingVariableError extends Error {
-    constructor(public key: string) {
-        super(`missing environment variable`);
-    }
-}
-
 export interface Parser<T> {
     parseKey(ctx: Context, key: string): ParseResult<T>;
     describe(key?: string, prepend?: string): string;
@@ -30,7 +24,11 @@ export interface Parser<T> {
 
 export type Option<T> = { tag: 'some'; value: T } | { tag: 'none' };
 
-function fromOption<T, U>(option: Option<T>, none: U, some: (value: T) => U, ): U {
+function fromOption<T, U>(
+    option: Option<T>,
+    none: U,
+    some: (value: T) => U,
+): U {
     if (option.tag === 'some') {
         return some(option.value);
     } else {
@@ -49,19 +47,25 @@ export abstract class Variable<T> implements Parser<T> {
     abstract parse(value: string): T;
     abstract getMetavar(): string;
     public parseKey(ctx: Context, key: string): ParseResult<T> {
-        const k = this.envName ?? key;
-        const state = ctx.values[k];
+        const envName = this.envName ?? key;
+        const state = ctx.values[envName];
         if (state === undefined) {
             if (this.defaultValue.tag === 'none') {
-                ctx.logger.error(
-                    k,
-                    undefined,
-                    new MissingVariableError(k),
-                );
+                logMissingVariable(ctx.logger, envName);
                 return { type: 'missing' };
             } else {
                 const value: T = this.defaultValue.value;
-                ctx.logger.success(k, value === null ? 'null' : value === undefined ? 'undefined' : value.toString(), true);
+                let strValue;
+                if (this.isSecret) {
+                    strValue = '<REDACTED>';
+                } else if (value === null) {
+                    strValue = 'null';
+                } else if (value === undefined) {
+                    strValue = 'undefined';
+                } else {
+                    strValue = value.toString();
+                }
+                ctx.logger.info(`${envName}=${strValue} (default)`);
                 return { type: 'success', value };
             }
         } else {
@@ -69,14 +73,14 @@ export abstract class Variable<T> implements Parser<T> {
             try {
                 const result = this.parse(state.value);
                 if (this.isSecret) {
-                    ctx.logger.success(k, '<REDACTED>', false);
+                    ctx.logger.info(`${envName}=<REDACTED>`);
                 } else {
-                    ctx.logger.success(k, state.value, false);
+                    ctx.logger.info(`${envName}=${result}`);
                 }
                 return { type: 'success', value: result };
             } catch (error) {
                 if (error instanceof Error) {
-                    ctx.logger.error(k, state.value, error);
+                    ctx.logger.error(`${envName}=${state.value} ERROR: ${error.message}`);
                     return { type: 'error', error };
                 }
                 throw error;
@@ -132,7 +136,9 @@ export abstract class Variable<T> implements Parser<T> {
     }
 }
 
-export class OptionalVariable<T, V extends Variable<T>> extends Variable<T | undefined> {
+export class OptionalVariable<T, V extends Variable<T>> extends Variable<
+    T | undefined
+> {
     constructor(private variable: V) {
         super();
         this.defaultValue = { tag: 'some', value: undefined };
@@ -154,7 +160,10 @@ export class OptionalVariable<T, V extends Variable<T>> extends Variable<T | und
 }
 
 export class MapVariable<T, U, V extends Variable<T>> extends Variable<U> {
-    constructor(private variable: V, private f: (value: T) => U) {
+    constructor(
+        private variable: V,
+        private f: (value: T) => U,
+    ) {
         super();
     }
     parse(value: string): U {
@@ -169,14 +178,13 @@ export class MapVariable<T, U, V extends Variable<T>> extends Variable<U> {
 export type ParsersOf<T> = {
     [K in keyof T]: Parser<T[K]>;
 };
-
 export class ObjectParser<T> implements Parser<T> {
     readonly _T!: T;
-    public constructor(
-        public fields: ParsersOf<T>,
-        public _description?: string,
-        public _logger?: ILogger,
-    ) {}
+    private _logger: ILogger;
+    private _description?: string;
+    public constructor(public fields: ParsersOf<T>) {
+        this._logger = new ConsoleLogger();
+    }
     public parseKey(ctx: Context, _key: string): ParseResult<T> {
         const result = fromParseResults(this.run(ctx));
         if (result instanceof Error) {
@@ -204,7 +212,7 @@ export class ObjectParser<T> implements Parser<T> {
         const final = fromParseResults(
             this.run({
                 values: env,
-                logger: this._logger ?? new ConsoleLogger(),
+                logger: this._logger,
             }),
         );
         if (final instanceof Error) {
@@ -214,15 +222,20 @@ export class ObjectParser<T> implements Parser<T> {
     }
     public describe(_key?: string, prepend?: string): string {
         const header = this._description ? `# ${this._description}` : undefined;
-        const fields = Object.keys(this.fields)
-            .map((k) => this.fields[k as keyof T].describe(k));
-        return [header, prepend, ...fields].filter(x => x !== undefined).join('\n');
+        const fields = Object.keys(this.fields).map((k) =>
+            this.fields[k as keyof T].describe(k),
+        );
+        return [header, prepend, ...fields]
+            .filter((x) => x !== undefined)
+            .join('\n');
     }
     public description(description: string): ObjectParser<T> {
-        return new ObjectParser(this.fields, description, this._logger);
+        this._description = description;
+        return this;
     }
     public logger(logger: ILogger): ObjectParser<T> {
-        return new ObjectParser(this.fields, this._description, logger);
+        this._logger = logger;
+        return this;
     }
 }
 
@@ -267,11 +280,7 @@ export class UntaggedSwitcher<T>
         const k = this.envName ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
-            ctx.logger.error(
-                k,
-                undefined,
-                new MissingVariableError(k),
-            );
+            logMissingVariable(ctx.logger, k);
             return { type: 'missing' };
         }
         const parser = this._options[value as keyof T];
@@ -279,7 +288,7 @@ export class UntaggedSwitcher<T>
             const error = new Error(
                 `it must be ${serialComma(Object.keys(this._options))}, but got ${value}`,
             );
-            ctx.logger.error(k, value, error);
+            ctx.logger.error(`${k}=${value} ERROR: ${error.message}`);
             return { type: 'error', error };
         }
         return parser.parseKey(ctx, k);
@@ -294,39 +303,23 @@ export class UntaggedSwitcher<T>
     default(key: keyof T): UntaggedSwitcher<T> {
         return new UntaggedSwitcher(this._options, key, this.envName);
     }
-    tag<Tag extends string>(
-        tag: Tag,
-    ): Switcher<Tag, T> {
-        return new Switcher(
-            tag,
-            this._options,
-            this._default,
-            this.envName,
-        );
+    tag<Tag extends string>(tag: Tag): Switcher<Tag, T> {
+        return new Switcher(tag, this._options, this._default, this.envName);
     }
 }
 
-export class Switcher<Tag extends string, T>
-    implements Parser<Tagged<Tag, T>>
-{
+export class Switcher<Tag extends string, T> implements Parser<Tagged<Tag, T>> {
     constructor(
         private tag: Tag,
         private _options: ParsersOf<T>,
         private _default?: keyof T,
         private envName?: string,
     ) {}
-    parseKey(
-        ctx: Context,
-        key: string,
-    ): ParseResult<Tagged<Tag, T>> {
+    parseKey(ctx: Context, key: string): ParseResult<Tagged<Tag, T>> {
         const k = this.envName ?? key;
         const value = ctx.values[k]?.value ?? this._default;
         if (value === undefined) {
-            ctx.logger.error(
-                k,
-                undefined,
-                new MissingVariableError(k),
-            );
+            logMissingVariable(ctx.logger, k);
             return { type: 'missing' };
         }
         const parser = this._options[value as keyof T];
@@ -334,13 +327,18 @@ export class Switcher<Tag extends string, T>
             const error = new Error(
                 `it must be ${serialComma(Object.keys(this._options))}, but got ${value}`,
             );
-            ctx.logger.error(k, value, error);
+            ctx.logger.error(`${key}=${value} ERROR: ${error.message}`);
             return { type: 'error', error };
         }
-        ctx.logger.success(k, value, ctx.values[k] === undefined);
+        const isDefault = ctx.values[k] === undefined;
+        if (isDefault) {
+            ctx.logger.info(`${k}=${value} (default)`)
+        } else {
+            ctx.logger.info(`${k}=${value}`)
+        }
         const result = parser.parseKey(ctx, k);
         const tag = { [this.tag]: value } as { [P in Tag]: keyof T };
-        if (result.type === 'success'){
+        if (result.type === 'success') {
             return {
                 type: 'success',
                 value: {
@@ -422,7 +420,9 @@ export class NumericVariable extends Variable<number> {
         return num;
     }
     getMetavar(): string {
-        return fromOption(this.defaultValue, '<number>', (value) => value.toString());
+        return fromOption(this.defaultValue, '<number>', (value) =>
+            value.toString(),
+        );
     }
 }
 
@@ -446,6 +446,8 @@ export class BooleanVariable extends Variable<boolean> {
         throw new Error('invalid boolean');
     }
     getMetavar(): string {
-        return fromOption(this.defaultValue, 'true|false', (value) => value.toString());
+        return fromOption(this.defaultValue, 'true|false', (value) =>
+            value.toString(),
+        );
     }
 }

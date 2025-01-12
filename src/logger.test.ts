@@ -12,7 +12,7 @@ describe('Logger', () => {
     it('should log messages correctly', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
-      logger.success('KEY', 'value', false);
+      logger.info(`KEY=value`);
       
       expect(consoleSpy).toMatchSnapshot();
       consoleSpy.mockRestore();
@@ -23,7 +23,7 @@ describe('Logger', () => {
     it('should log errors correctly', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       
-      logger.error('KEY', 'value', new Error('test error'));
+      logger.error(`KEY=value ERROR: test error`);
       
       expect(consoleSpy).toMatchSnapshot();
       consoleSpy.mockRestore();

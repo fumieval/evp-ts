@@ -52,3 +52,5 @@ exports[`EVP > optional 1`] = `
 "# FOO=foo
 # BAR=bar"
 `;
+
+exports[`EVP > winston compatibility 1`] = `[]`;

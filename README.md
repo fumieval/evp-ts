@@ -131,23 +131,20 @@ console.log(parser.parse());
 
 ## Customising the logger
 
-By default, evp-ts uses the `console` object to log messages. You can customize the logger by calling `.logger()` on the parser object.
+By default, evp-ts uses `console` to log messages.
+You can attach a custom logger, such as [winston](https://www.npmjs.com/package/winston)'s to the parser using the `.logger()` method.
 
 ```typescript
 import { EVP } from 'evp-ts';
+import * as winston from 'winston';
 
+const logger = winston.createLogger();
 const parser = EVP.object({
-    API_ENDPOINT: EVP.string(),
-}).logger({
-    success(key, value, useDefault){
-        console.log(`${key}=${useDefault ? `(default) ${value}` : value}`);
-    },
-    error(key, value, error){
-        console.error(`${key}=${value}: ${error.message}`);
-    },
-});
+    LOG_LEVEL: EVP.enum(['error', 'warn', 'info', 'debug']).default('info'),
+}).logger(logger);
 
-parser.parse();
+const result = parser.parse();
+logger.level = result.LOG_LEVEL;
 ```
 
 ## License
