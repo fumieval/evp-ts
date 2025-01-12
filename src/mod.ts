@@ -264,7 +264,7 @@ function fromParseResults<T>(partial: ParseResults<T>): ParseResult<T> {
     return { type: 'success', value: result as T };
 }
 
-export type Tagged<Tag extends string, T> = {
+export type TaggedUnion<Tag extends string, T> = {
     [K in keyof T]: { [P in Tag]: K } & T[K];
 }[keyof T];
 
@@ -317,14 +317,14 @@ export class UntaggedUnionParser<T>
     }
 }
 
-export class TaggedUnionParser<Tag extends string, T> extends VariableLike<Tagged<Tag, T>, keyof T> {
+export class TaggedUnionParser<Tag extends string, T> extends VariableLike<TaggedUnion<Tag, T>, keyof T> {
     constructor(
         private tag: Tag,
         private _options: ParsersOf<T>,
     ) {
         super();
     }
-    parseContext(ctx: Context): ParseResult<Tagged<Tag, T>> {
+    parseContext(ctx: Context): ParseResult<TaggedUnion<Tag, T>> {
         const k = this.envName ?? ctx.currentKey;
         if (k === undefined) {
             throw new Error('Unable to determine the name of the variable');
