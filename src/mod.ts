@@ -1,4 +1,5 @@
 import { ILogger, ConsoleLogger, logMissingVariable } from './logger';
+import { fromOption, none, some, Option, toUndefined } from './option';
 
 export type State = {
     value: string;
@@ -20,20 +21,6 @@ export type ParseResults<T> = { [K in keyof T]: ParseResult<T[K]> };
 export interface Parser<T> {
     parseKey(ctx: Context, key: string): ParseResult<T>;
     describe(key?: string, prepend?: string): string;
-}
-
-export type Option<T> = { tag: 'some'; value: T } | { tag: 'none' };
-
-function fromOption<T, U>(
-    option: Option<T>,
-    none: U,
-    some: (value: T) => U,
-): U {
-    if (option.tag === 'some') {
-        return some(option.value);
-    } else {
-        return none;
-    }
 }
 
 /** Variable<T> represents a single environment variable that can be parsed into a value of type T */
