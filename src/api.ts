@@ -3,7 +3,7 @@ import {
     Variable,
     ParsersOf,
     Enum,
-    UntaggedSwitcher,
+    UntaggedUnionParser,
     BooleanVariable,
     NumericVariable,
     StringVariable,
@@ -93,7 +93,7 @@ export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {
  * Create a dynamically-switched parser depending on the value.
  * Use `.options()` to add options, and use `.discriminator()` to specify the field to propagate the switching value.
  * @param name - The name of the switcher
- * @returns An UndiscriminatedSwitcher
+ * @returns An UndiscriminatedUnionParser
  * 
  * @example
  * ```ts
@@ -105,8 +105,8 @@ export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {
  *   .discriminator('type');
  * ```
  */
-export function union<T>(options: ParsersOf<T>): UntaggedSwitcher<T> {
-    return new UntaggedSwitcher(options, undefined);
+export function union<T>(options: ParsersOf<T>): UntaggedUnionParser<T> {
+    return new UntaggedUnionParser(options);
 }
 
 function enum_<U extends string, T extends U[]>(values: T): Enum<U, T> {

@@ -24,10 +24,10 @@ export interface Parser<T> {
 }
 
 /** Variable<T> represents a single environment variable that can be parsed into a value of type T */
-export abstract class VariableLike<T> implements Parser<T> {
+export abstract class VariableLike<T, Default = T> implements Parser<T> {
     public envName?: string;
     public isSecret: boolean = false;
-    public defaultValue: Option<T> = { tag: 'none' };
+    public defaultValue: Option<Default> = { tag: 'none' };
     public _description?: string;
     public _logger: ILogger | undefined;
     public forceMetavar?: string;
@@ -40,7 +40,7 @@ export abstract class VariableLike<T> implements Parser<T> {
         return this;
     }
     /** set a default value for the variable */
-    public default(defaultValue: T): this {
+    public default(defaultValue: Default): this {
         this.defaultValue = { tag: 'some', value: defaultValue };
         return this;
     }
@@ -72,9 +72,19 @@ export abstract class VariableLike<T> implements Parser<T> {
             return binding;
         }
     }
+
+    clone<U>(source: VariableLike<U, Default>): this {
+        this.envName = source.envName;
+        this.isSecret = source.isSecret;
+        this._description = source._description;
+        this.defaultValue = source.defaultValue;
+        this._logger = source._logger;
+        this.forceMetavar = source.forceMetavar;
+        return this;
+    }
 }
 
-export abstract class Variable<T> extends VariableLike<T> {
+export abstract class Variable<T> extends VariableLike<T, T> {
     abstract parse(value: string): T;
     public parseKey(ctx: Context, key: string): ParseResult<T> {
         const envName = this.envName ?? key;
@@ -259,20 +269,20 @@ export type Tagged<Tag extends string, T> = {
     [K in keyof T]: { [P in Tag]: K } & T[K];
 }[keyof T];
 
-export class UntaggedSwitcher<T>
-    implements Parser<{ [K in keyof T]: T[K] }[keyof T]>
+export class UntaggedUnionParser<T>
+    extends VariableLike<{ [K in keyof T]: T[K] }[keyof T], Extract<keyof T, string>>
 {
     constructor(
         private _options: ParsersOf<T>,
-        private _default?: keyof T,
-        private envName?: string,
-    ) {}
+    ) {
+        super();
+    }
     parseKey(
         ctx: Context,
         key: string,
     ): ParseResult<{ [K in keyof T]: T[K] }[keyof T]> {
         const k = this.envName ?? key;
-        const value = ctx.values[k]?.value ?? this._default;
+        const value = ctx.values[k]?.value ?? toUndefined(this.defaultValue);
         if (value === undefined) {
             logMissingVariable(ctx.logger, k);
             return { type: 'missing' };
@@ -291,27 +301,31 @@ export class UntaggedSwitcher<T>
         return describeOptions(
             this.envName ?? key ?? '',
             this._options,
-            this._default,
+            toUndefined(this.defaultValue),
         );
     }
-    default(key: keyof T): UntaggedSwitcher<T> {
-        return new UntaggedSwitcher(this._options, key, this.envName);
+    getMetavar(): string {
+        return fromOption(this.defaultValue,
+            Object.keys(this._options).join('|'),
+            (value) => value);
     }
-    tag<Tag extends string>(tag: Tag): Switcher<Tag, T> {
-        return new Switcher(tag, this._options, this._default, this.envName);
+    tag<Tag extends string>(tag: Tag): TaggedUnionParser<Tag, T> {
+        const result = new TaggedUnionParser(tag, this._options);
+        result.clone(this);
+        return result;
     }
 }
 
-export class Switcher<Tag extends string, T> implements Parser<Tagged<Tag, T>> {
+export class TaggedUnionParser<Tag extends string, T> extends VariableLike<Tagged<Tag, T>, keyof T> {
     constructor(
         private tag: Tag,
         private _options: ParsersOf<T>,
-        private _default?: keyof T,
-        private envName?: string,
-    ) {}
+    ) {
+        super();
+    }
     parseKey(ctx: Context, key: string): ParseResult<Tagged<Tag, T>> {
         const k = this.envName ?? key;
-        const value = ctx.values[k]?.value ?? this._default;
+        const value = ctx.values[k]?.value ?? toUndefined(this.defaultValue)
         if (value === undefined) {
             logMissingVariable(ctx.logger, k);
             return { type: 'missing' };
@@ -348,11 +362,11 @@ export class Switcher<Tag extends string, T> implements Parser<Tagged<Tag, T>> {
         return describeOptions(
             this.envName ?? contextKey ?? '',
             this._options,
-            this._default,
+            toUndefined(this.defaultValue),
         );
     }
-    default(key: keyof T): Switcher<Tag, T> {
-        return new Switcher(this.tag, this._options, key, this.envName);
+    getMetavar(): string {
+        return fromOption(this.defaultValue, Object.keys(this._options).join('|'), (value) => value.toString());
     }
 }
 
