@@ -9,6 +9,7 @@ export type State = {
 export type Context = {
     values: Record<string, State>;
     logger: ILogger;
+    currentKey: string | undefined;
 };
 
 export type ParseResult<T> =
@@ -19,7 +20,7 @@ export type ParseResult<T> =
 export type ParseResults<T> = { [K in keyof T]: ParseResult<T[K]> };
 
 export interface Parser<T> {
-    parseKey(ctx: Context, key: string): ParseResult<T>;
+    parseContext(ctx: Context): ParseResult<T>;
     describe(key?: string, prepend?: string): string;
 }
 
@@ -31,7 +32,7 @@ export abstract class VariableLike<T, Default = T> implements Parser<T> {
     public _description?: string;
     public forceMetavar?: string;
     abstract getMetavar(): string;
-    abstract parseKey(ctx: Context, key: string): ParseResult<T>;
+    abstract parseContext(ctx: Context): ParseResult<T>;
 
     /** mark the variable as a secret, so its value will be redacted in logs */
     public secret(): this {
@@ -84,8 +85,11 @@ export abstract class VariableLike<T, Default = T> implements Parser<T> {
 
 export abstract class Variable<T> extends VariableLike<T, T> {
     abstract parse(value: string): T;
-    public parseKey(ctx: Context, key: string): ParseResult<T> {
-        const envName = this.envName ?? key;
+    public parseContext(ctx: Context): ParseResult<T> {
+        const envName = this.envName ?? ctx.currentKey;
+        if (envName === undefined) {
+            throw new Error('Unable to determine the name of the variable');
+        }
         const state = ctx.values[envName];
         if (state === undefined) {
             if (this.defaultValue.tag === 'none') {
@@ -187,20 +191,13 @@ export class ObjectParser<T> extends VariableLike<T> {
         super();
         this._logger = new ConsoleLogger();
     }
-    public parseKey(ctx: Context, _key: string): ParseResult<T> {
-        const result = fromParseResults(this.run(ctx));
-        if (result instanceof Error) {
-            return { type: 'error', error: result };
-        }
-        return { type: 'success', value: result };
-    }
-    run(ctx: Context): ParseResults<T> {
-        const result: Partial<ParseResults<T>> = {};
+    public parseContext(ctx: Context): ParseResult<T> {
+        const result: ParseResults<T> = {} as ParseResults<T>;
         for (const key in this.fields) {
             const variable = this.fields[key];
-            result[key] = variable.parseKey(ctx, key);
+            result[key] = variable.parseContext({ ...ctx, currentKey: key });
         }
-        return result as ParseResults<T>;
+        return fromParseResults(result);
     }
     public parse(input?: Record<string, string>): T {
         const raw = input ?? process.env;
@@ -211,16 +208,17 @@ export class ObjectParser<T> extends VariableLike<T> {
             }
             env[key] = { value, used: false };
         }
-        const final = fromParseResults(
-            this.run({
-                values: env,
-                logger: this._logger,
-            }),
-        );
-        if (final instanceof Error) {
-            throw final;
+        const final = this.parseContext({
+            values: env,
+            logger: this._logger,
+            currentKey: undefined,
+        });
+        if (final.type === 'error') {
+            throw final.error;
+        } else if (final.type === 'missing') {
+            throw new Error('missing required variables');
         }
-        return final;
+        return final.value;
     }
     public describe(_key?: string, prepend?: string): string {
         const header = this._description ? `# ${this._description}` : undefined;
@@ -241,15 +239,18 @@ export class ObjectParser<T> extends VariableLike<T> {
     }
 }
 
-function fromParseResults<T>(partial: ParseResults<T>): T | Error {
+function fromParseResults<T>(partial: ParseResults<T>): ParseResult<T> {
     // report an error with a list of missing variables
     const missing = Object.keys(partial).filter(
         (key) => partial[key as keyof T].type !== 'success',
     );
     if (missing.length > 0) {
-        return Error(
-            `Unable to fill the following fields: ${missing.join(', ')}`,
-        );
+        return {
+            type: 'error',
+            error: new Error(
+                `Unable to fill the following fields: ${missing.join(', ')}`,
+            ),
+        };
     }
     // combine the results into a single object
     const result: Partial<T> = {};
@@ -260,7 +261,7 @@ function fromParseResults<T>(partial: ParseResults<T>): T | Error {
             result[k] = value.value;
         }
     }
-    return result as T;
+    return { type: 'success', value: result as T };
 }
 
 export type Tagged<Tag extends string, T> = {
@@ -275,11 +276,13 @@ export class UntaggedUnionParser<T>
     ) {
         super();
     }
-    parseKey(
+    parseContext(
         ctx: Context,
-        key: string,
     ): ParseResult<{ [K in keyof T]: T[K] }[keyof T]> {
-        const k = this.envName ?? key;
+        const k = this.envName ?? ctx.currentKey;
+        if (k === undefined) {
+            throw new Error('Unable to determine the name of the variable');
+        }
         const value = ctx.values[k]?.value ?? toUndefined(this.defaultValue);
         if (value === undefined) {
             logMissingVariable(ctx.logger, k);
@@ -293,7 +296,7 @@ export class UntaggedUnionParser<T>
             ctx.logger.error(`${k}=${value} ERROR: ${error.message}`);
             return { type: 'error', error };
         }
-        return parser.parseKey(ctx, k);
+        return parser.parseContext(ctx);
     }
     describe(key?: string): string {
         return describeOptions(
@@ -321,8 +324,11 @@ export class TaggedUnionParser<Tag extends string, T> extends VariableLike<Tagge
     ) {
         super();
     }
-    parseKey(ctx: Context, key: string): ParseResult<Tagged<Tag, T>> {
-        const k = this.envName ?? key;
+    parseContext(ctx: Context): ParseResult<Tagged<Tag, T>> {
+        const k = this.envName ?? ctx.currentKey;
+        if (k === undefined) {
+            throw new Error('Unable to determine the name of the variable');
+        }
         const value = ctx.values[k]?.value ?? toUndefined(this.defaultValue)
         if (value === undefined) {
             logMissingVariable(ctx.logger, k);
@@ -333,7 +339,7 @@ export class TaggedUnionParser<Tag extends string, T> extends VariableLike<Tagge
             const error = new Error(
                 `it must be ${serialComma(Object.keys(this._options))}, but got ${value}`,
             );
-            ctx.logger.error(`${key}=${value} ERROR: ${error.message}`);
+            ctx.logger.error(`${k}=${value} ERROR: ${error.message}`);
             return { type: 'error', error };
         }
         const isDefault = ctx.values[k] === undefined;
@@ -342,7 +348,7 @@ export class TaggedUnionParser<Tag extends string, T> extends VariableLike<Tagge
         } else {
             ctx.logger.info(`${k}=${value}`)
         }
-        const result = parser.parseKey(ctx, k);
+        const result = parser.parseContext(ctx);
         const tag = { [this.tag]: value } as { [P in Tag]: keyof T };
         if (result.type === 'success') {
             return {
