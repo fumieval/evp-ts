@@ -29,7 +29,6 @@ export abstract class VariableLike<T, Default = T> implements Parser<T> {
     public isSecret: boolean = false;
     public defaultValue: Option<Default> = { tag: 'none' };
     public _description?: string;
-    public _logger: ILogger | undefined;
     public forceMetavar?: string;
     abstract getMetavar(): string;
     abstract parseKey(ctx: Context, key: string): ParseResult<T>;
@@ -78,7 +77,6 @@ export abstract class VariableLike<T, Default = T> implements Parser<T> {
         this.isSecret = source.isSecret;
         this._description = source._description;
         this.defaultValue = source.defaultValue;
-        this._logger = source._logger;
         this.forceMetavar = source.forceMetavar;
         return this;
     }
@@ -182,11 +180,11 @@ export class MapVariable<T, U, V extends Variable<T>> extends Variable<U> {
 export type ParsersOf<T> = {
     [K in keyof T]: Parser<T[K]>;
 };
-export class ObjectParser<T> implements Parser<T> {
+export class ObjectParser<T> extends VariableLike<T> {
     readonly _T!: T;
     private _logger: ILogger;
-    private _description?: string;
     public constructor(public fields: ParsersOf<T>) {
+        super();
         this._logger = new ConsoleLogger();
     }
     public parseKey(ctx: Context, _key: string): ParseResult<T> {
@@ -233,13 +231,13 @@ export class ObjectParser<T> implements Parser<T> {
             .filter((x) => x !== undefined)
             .join('\n');
     }
-    public description(description: string): ObjectParser<T> {
-        this._description = description;
-        return this;
-    }
     public logger(logger: ILogger): ObjectParser<T> {
         this._logger = logger;
         return this;
+    }
+    public getMetavar(): string {
+        // this should never be called
+        return 'object';
     }
 }
 
