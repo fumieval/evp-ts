@@ -238,7 +238,7 @@ export class ObjectParser<T> extends VariableLike<never, T> {
         }
         return fromParseResults(result);
     }
-    public parse(input?: Record<string, string>): T {
+    public safeParse(input?: Record<string, string>): ParseResult<T> {
         const raw = input ?? process.env;
         const env: Record<string, State> = {};
         for (const [key, value] of Object.entries(raw)) {
@@ -247,12 +247,15 @@ export class ObjectParser<T> extends VariableLike<never, T> {
             }
             env[key] = { value, used: false };
         }
-        const final = this.parseContext({
+        return this.parseContext({
             values: env,
             logger: this._logger,
             envName: void 0,
             envValue: undefined,
         });
+    }
+    public parse(input?: Record<string, string>): T {
+        const final = this.safeParse(input);
         if (final.type === 'error') {
             throw final.error;
         } else if (final.type === 'missing') {
