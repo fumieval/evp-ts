@@ -1,6 +1,7 @@
 import {
     ObjectParser,
     Variable,
+    KnownEnvName,
     ParsersOf,
     Enum,
     UntaggedUnionParser,
@@ -85,7 +86,7 @@ export function boolean(): Variable<boolean> {
  *   })
  * },
  */
-export function object<T>(fields: ParsersOf<T>): ObjectParser<T> {
+export function object<T>(fields: ParsersOf<KnownEnvName, T>): ObjectParser<T> {
     return new ObjectParser(fields);
 }
 
@@ -109,7 +110,7 @@ export function emptyObject(): ObjectParser<Record<string, never>> {
  *   .discriminator('type');
  * ```
  */
-export function union<T>(options: ParsersOf<T>): UntaggedUnionParser<T> {
+export function union<T>(options: ParsersOf<void, T>): UntaggedUnionParser<T> {
     return new UntaggedUnionParser(options);
 }
 

@@ -6,11 +6,14 @@ export type State = {
     used: boolean;
 };
 
-export type Context = {
+export type Context<Env> = {
     values: Record<string, State>;
     logger: ILogger;
-    currentKey: string | undefined;
+    envName: Env;
+    envValue: string | undefined;
 };
+
+export type KnownEnvName = string;
 
 export type ParseResult<T> =
     | { type: 'success'; value: T }
@@ -19,20 +22,23 @@ export type ParseResult<T> =
 
 export type ParseResults<T> = { [K in keyof T]: ParseResult<T[K]> };
 
-export interface Parser<T> {
-    parseContext(ctx: Context): ParseResult<T>;
+export interface Parser<Env, T> {
+    envName?: Env;
+    parseContext(ctx: Context<Env>): ParseResult<T>;
     describe(key?: string, prepend?: string): string;
 }
 
 /** Variable<T> represents a single environment variable that can be parsed into a value of type T */
-export abstract class VariableLike<T, Default = T> implements Parser<T> {
-    public envName?: string;
+export abstract class VariableLike<EnvName, T, Default = T>
+    implements Parser<EnvName, T>
+{
+    public envName?: EnvName;
     public isSecret: boolean = false;
     public defaultValue: Option<Default> = { tag: 'none' };
     public _description?: string;
     public forceMetavar?: string;
     abstract getMetavar(): string;
-    abstract parseContext(ctx: Context): ParseResult<T>;
+    abstract parseContext(ctx: Context<EnvName>): ParseResult<T>;
 
     /** mark the variable as a secret, so its value will be redacted in logs */
     public secret(): this {
@@ -57,7 +63,7 @@ export abstract class VariableLike<T, Default = T> implements Parser<T> {
     }
 
     /** read the specified environment variable */
-    public env(name: string): this {
+    public env(name: EnvName): this {
         this.envName = name;
         return this;
     }
@@ -72,28 +78,12 @@ export abstract class VariableLike<T, Default = T> implements Parser<T> {
             return binding;
         }
     }
-
-    clone<U>(source: VariableLike<U, Default>): this {
-        this.envName = source.envName;
-        this.isSecret = source.isSecret;
-        this._description = source._description;
-        this.defaultValue = source.defaultValue;
-        this.forceMetavar = source.forceMetavar;
-        return this;
-    }
-
-    public optional(): OptionalVariable<T | undefined, this> {
-        return new OptionalVariable(this);
-    }
 }
 
-export abstract class Variable<T> extends VariableLike<T, T> {
+export abstract class Variable<T> extends VariableLike<KnownEnvName, T, T> {
     abstract parse(value: string): T;
-    public parseContext(ctx: Context): ParseResult<T> {
-        const envName = this.envName ?? ctx.currentKey;
-        if (envName === undefined) {
-            throw new Error('Unable to determine the name of the variable');
-        }
+    public parseContext(ctx: Context<KnownEnvName>): ParseResult<T> {
+        const envName = ctx.envName;
         const state = ctx.values[envName];
         if (state === undefined) {
             if (this.defaultValue.tag === 'none') {
@@ -126,7 +116,9 @@ export abstract class Variable<T> extends VariableLike<T, T> {
                 return { type: 'success', value: result };
             } catch (error) {
                 if (error instanceof Error) {
-                    ctx.logger.error(`${envName}=${state.value} ERROR: ${error.message}`);
+                    ctx.logger.error(
+                        `${envName}=${state.value} ERROR: ${error.message}`,
+                    );
                     return { type: 'error', error };
                 }
                 throw error;
@@ -140,27 +132,66 @@ export abstract class Variable<T> extends VariableLike<T, T> {
     public map<U>(f: (value: T) => U): Variable<U> {
         return new MapVariable(this, f);
     }
+
+    public optional(): OptionalVariable<T, this> {
+        const result = new OptionalVariable<T, this>(this);
+        this.envName = this.envName;
+        this.isSecret = this.isSecret;
+        this._description = this._description;
+        this.forceMetavar = this.forceMetavar;
+        return result;
+    }
 }
 
-export class OptionalVariable<T, V extends VariableLike<T, unknown>> extends VariableLike<
-    T | undefined, undefined
-> {
+export class OptionalVariable<T, V extends VariableLike<KnownEnvName, T, any>>
+    implements VariableLike<KnownEnvName, T | undefined, undefined>
+{
+    public isSecret: boolean;
+    public envName?: KnownEnvName;
+    public defaultValue: Option<undefined> = { tag: 'some', value: undefined };
+    public _description?: string;
     constructor(private variable: V) {
-        super();
-        this.defaultValue = { tag: 'some', value: undefined };
+        this.isSecret = variable.isSecret;
+        this.envName = variable.envName;
+        this._description = variable._description;
     }
-    parseContext(ctx: Context): ParseResult<T | undefined> {
-        const envName = this.envName ?? ctx.currentKey;
+    public parseContext(
+        ctx: Context<KnownEnvName>,
+    ): ParseResult<T | undefined> {
+        const envName = ctx.envName;
         if (envName === undefined) {
             throw new Error('Unable to determine the name of the variable');
         }
         if (ctx.values[envName] === undefined) {
+            ctx.logger.info(`${envName}=undefined (default)`);
             return { type: 'success', value: undefined };
         }
         return this.variable.parseContext(ctx);
     }
-    getMetavar(): string {
+    public getMetavar(): string {
         return this.variable.getMetavar();
+    }
+    public metavar(metavar: string): this {
+        this.variable.metavar(metavar);
+        return this;
+    }
+    public description(description: string): this {
+        this._description = description;
+        this.variable.description(description);
+        return this;
+    }
+    public secret(): this {
+        this.variable.secret();
+        this.isSecret = true;
+        return this;
+    }
+    public env(name: KnownEnvName): this {
+        this.variable.env(name);
+        this.envName = name;
+        return this;
+    }
+    public default(defaultValue: undefined): this {
+        return this;
     }
     public describe(key?: string): string {
         return `# ${this.variable.describe(key)}`;
@@ -183,21 +214,27 @@ export class MapVariable<T, U, V extends Variable<T>> extends Variable<U> {
 }
 
 /** ParsersOf<T> is a record where each value is a Parser<T[key]> for each key in T */
-export type ParsersOf<T> = {
-    [K in keyof T]: Parser<T[K]>;
+export type ParsersOf<EnvName, T> = {
+    [K in keyof T]: Parser<EnvName, T[K]>;
 };
-export class ObjectParser<T> extends VariableLike<T> {
+
+export class ObjectParser<T> extends VariableLike<never, T> {
     readonly _T!: T;
     private _logger: ILogger;
-    public constructor(public fields: ParsersOf<T>) {
+    public constructor(public fields: ParsersOf<KnownEnvName, T>) {
         super();
         this._logger = new ConsoleLogger();
     }
-    public parseContext(ctx: Context): ParseResult<T> {
+    public parseContext(ctx: Context<unknown>): ParseResult<T> {
         const result: ParseResults<T> = {} as ParseResults<T>;
         for (const key in this.fields) {
             const variable = this.fields[key];
-            result[key] = variable.parseContext({ ...ctx, currentKey: key });
+            const envName = variable.envName ?? key;
+            result[key] = variable.parseContext({
+                ...ctx,
+                envName,
+                envValue: ctx.values[envName]?.value,
+            });
         }
         return fromParseResults(result);
     }
@@ -213,7 +250,8 @@ export class ObjectParser<T> extends VariableLike<T> {
         const final = this.parseContext({
             values: env,
             logger: this._logger,
-            currentKey: undefined,
+            envName: void 0,
+            envValue: undefined,
         });
         if (final.type === 'error') {
             throw final.error;
@@ -272,24 +310,20 @@ export type TaggedUnion<Tag extends string, T> = {
 
 export type UntaggedUnion<T> = { [K in keyof T]: T[K] }[keyof T];
 
-export class UntaggedUnionParser<T>
-    extends VariableLike<UntaggedUnion<T>, Extract<keyof T, string>>
-{
-    constructor(
-        private _options: ParsersOf<T>,
-    ) {
+export class UntaggedUnionParser<T> extends VariableLike<
+    KnownEnvName,
+    UntaggedUnion<T>,
+    Extract<keyof T, string>
+> {
+    constructor(private _options: ParsersOf<void, T>) {
         super();
     }
     parseContext(
-        ctx: Context,
+        ctx: Context<KnownEnvName>,
     ): ParseResult<{ [K in keyof T]: T[K] }[keyof T]> {
-        const k = this.envName ?? ctx.currentKey;
-        if (k === undefined) {
-            throw new Error('Unable to determine the name of the variable');
-        }
-        const value = ctx.values[k]?.value ?? toUndefined(this.defaultValue);
+        const value = ctx.envValue ?? toUndefined(this.defaultValue);
         if (value === undefined) {
-            logMissingVariable(ctx.logger, k);
+            logMissingVariable(ctx.logger, ctx.envName);
             return { type: 'missing' };
         }
         const parser = this._options[value as keyof T];
@@ -297,10 +331,13 @@ export class UntaggedUnionParser<T>
             const error = new Error(
                 `it must be ${serialComma(Object.keys(this._options))}, but got ${value}`,
             );
-            ctx.logger.error(`${k}=${value} ERROR: ${error.message}`);
+            ctx.logger.error(`${ctx.envName}=${value} ERROR: ${error.message}`);
             return { type: 'error', error };
         }
-        return parser.parseContext(ctx);
+        return parser.parseContext({
+            ...ctx,
+            envName: void 0,
+        });
     }
     describe(key?: string): string {
         return describeOptions(
@@ -310,32 +347,38 @@ export class UntaggedUnionParser<T>
         );
     }
     getMetavar(): string {
-        return fromOption(this.defaultValue,
+        return fromOption(
+            this.defaultValue,
             Object.keys(this._options).join('|'),
-            (value) => value);
+            (value) => value,
+        );
     }
     tag<Tag extends string>(tag: Tag): TaggedUnionParser<Tag, T> {
         const result = new TaggedUnionParser(tag, this._options);
-        result.clone(this);
+        this.envName = this.envName;
+        this.isSecret = this.isSecret;
+        this._description = this._description;
+        this.defaultValue = this.defaultValue;
+        this.forceMetavar = this.forceMetavar;
         return result;
     }
 }
 
-export class TaggedUnionParser<Tag extends string, T> extends VariableLike<TaggedUnion<Tag, T>, keyof T> {
+export class TaggedUnionParser<Tag extends string, T> extends VariableLike<
+    KnownEnvName,
+    TaggedUnion<Tag, T>,
+    Extract<keyof T, string>
+> {
     constructor(
         private tag: Tag,
-        private _options: ParsersOf<T>,
+        private _options: ParsersOf<void, T>,
     ) {
         super();
     }
-    parseContext(ctx: Context): ParseResult<TaggedUnion<Tag, T>> {
-        const k = this.envName ?? ctx.currentKey;
-        if (k === undefined) {
-            throw new Error('Unable to determine the name of the variable');
-        }
-        const value = ctx.values[k]?.value ?? toUndefined(this.defaultValue)
+    parseContext(ctx: Context<KnownEnvName>): ParseResult<TaggedUnion<Tag, T>> {
+        const value = ctx.envValue ?? toUndefined(this.defaultValue);
         if (value === undefined) {
-            logMissingVariable(ctx.logger, k);
+            logMissingVariable(ctx.logger, ctx.envName);
             return { type: 'missing' };
         }
         const parser = this._options[value as keyof T];
@@ -343,16 +386,19 @@ export class TaggedUnionParser<Tag extends string, T> extends VariableLike<Tagge
             const error = new Error(
                 `it must be ${serialComma(Object.keys(this._options))}, but got ${value}`,
             );
-            ctx.logger.error(`${k}=${value} ERROR: ${error.message}`);
+            ctx.logger.error(`${ctx.envName}=${value} ERROR: ${error.message}`);
             return { type: 'error', error };
         }
-        const isDefault = ctx.values[k] === undefined;
+        const isDefault = ctx.envValue === undefined;
         if (isDefault) {
-            ctx.logger.info(`${k}=${value} (default)`)
+            ctx.logger.info(`${ctx.envName}=${value} (default)`);
         } else {
-            ctx.logger.info(`${k}=${value}`)
+            ctx.logger.info(`${ctx.envName}=${value}`);
         }
-        const result = parser.parseContext(ctx);
+        const result = parser.parseContext({
+            ...ctx,
+            envName: void 0,
+        });
         const tag = { [this.tag]: value } as { [P in Tag]: keyof T };
         if (result.type === 'success') {
             return {
@@ -374,13 +420,17 @@ export class TaggedUnionParser<Tag extends string, T> extends VariableLike<Tagge
         );
     }
     getMetavar(): string {
-        return fromOption(this.defaultValue, Object.keys(this._options).join('|'), (value) => value.toString());
+        return fromOption(
+            this.defaultValue,
+            Object.keys(this._options).join('|'),
+            (value) => value.toString(),
+        );
     }
 }
 
 function describeOptions<T>(
     key: string,
-    options: ParsersOf<T>,
+    options: ParsersOf<unknown, T>,
     defaultOption?: keyof T,
 ): string {
     return Object.keys(options)
