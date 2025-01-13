@@ -1,5 +1,5 @@
 import { ILogger, ConsoleLogger, logMissingVariable } from './logger';
-import { fromOption, none, some, Option, toUndefined } from './option';
+import { fromOption, Option, toUndefined } from './option';
 
 export type State = {
     value: string;
@@ -81,6 +81,10 @@ export abstract class VariableLike<T, Default = T> implements Parser<T> {
         this.forceMetavar = source.forceMetavar;
         return this;
     }
+
+    public optional(): OptionalVariable<T | undefined, this> {
+        return new OptionalVariable(this);
+    }
 }
 
 export abstract class Variable<T> extends VariableLike<T, T> {
@@ -130,34 +134,32 @@ export abstract class Variable<T> extends VariableLike<T, T> {
         }
     }
 
-    /** apply a function to the parsed value.
-     * Note that metavar is not preserved.
-     * */
+    /**
+     * apply a function to the parsed value.
+     */
     public map<U>(f: (value: T) => U): Variable<U> {
         return new MapVariable(this, f);
     }
-
-    public optional(): Variable<T | undefined> {
-        return new OptionalVariable(this);
-    }
 }
 
-export class OptionalVariable<T, V extends Variable<T>> extends Variable<
-    T | undefined
+export class OptionalVariable<T, V extends VariableLike<T, unknown>> extends VariableLike<
+    T | undefined, undefined
 > {
     constructor(private variable: V) {
         super();
         this.defaultValue = { tag: 'some', value: undefined };
     }
-    parse(value: string): T | undefined {
-        return this.variable.parse(value);
-    }
-    metavar(metavar: string): this {
-        this.variable.metavar(metavar);
-        return this;
+    parseContext(ctx: Context): ParseResult<T | undefined> {
+        const envName = this.envName ?? ctx.currentKey;
+        if (envName === undefined) {
+            throw new Error('Unable to determine the name of the variable');
+        }
+        if (ctx.values[envName] === undefined) {
+            return { type: 'success', value: undefined };
+        }
+        return this.variable.parseContext(ctx);
     }
     getMetavar(): string {
-        /* v8 ignore next 2 */
         return this.variable.getMetavar();
     }
     public describe(key?: string): string {
@@ -229,7 +231,7 @@ export class ObjectParser<T> extends VariableLike<T> {
             .filter((x) => x !== undefined)
             .join('\n');
     }
-    public logger(logger: ILogger): ObjectParser<T> {
+    public logger(logger: ILogger): this {
         this._logger = logger;
         return this;
     }
