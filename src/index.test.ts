@@ -33,7 +33,9 @@ const parser = EVP.object({
             DATA_PATH: EVP.string(),
         }),
         mysql: EVP.object({
-            DATABASE: EVP.string(),
+            host: EVP.string().env('MYSQL_HOST').default('localhost'),
+            port: EVP.string().env('MYSQL_PORT').default('3306'),
+            database: EVP.string().env('MYSQL_DATABASE'),
         }),
     }).tag('type').default('dummy'),
     MODE: EVP.enum(['development', 'production']),

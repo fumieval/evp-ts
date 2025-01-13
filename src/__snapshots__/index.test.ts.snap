@@ -20,7 +20,9 @@ DATA_SOURCE=dummy
 # DATA_PATH=<string>
 
 # DATA_SOURCE=mysql
-# DATABASE=<string>
+# MYSQL_HOST=localhost
+# MYSQL_PORT=3306
+# MYSQL_DATABASE=<string>
 MODE=development|production"
 `;
 

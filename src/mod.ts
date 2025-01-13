@@ -25,7 +25,7 @@ export type ParseResults<T> = { [K in keyof T]: ParseResult<T[K]> };
 export interface Parser<Env, T> {
     envName?: Env;
     parseContext(ctx: Context<Env>): ParseResult<T>;
-    describe(key?: string, prepend?: string): string;
+    describeVariable(envName: Env, prepend?: string): string;
 }
 
 /** Variable<T> represents a single environment variable that can be parsed into a value of type T */
@@ -39,6 +39,7 @@ export abstract class VariableLike<EnvName, T, Default = T>
     public forceMetavar?: string;
     abstract getMetavar(): string;
     abstract parseContext(ctx: Context<EnvName>): ParseResult<T>;
+    abstract describeVariable(envName: EnvName, prepend?: string): string;
 
     /** mark the variable as a secret, so its value will be redacted in logs */
     public secret(): this {
@@ -66,17 +67,6 @@ export abstract class VariableLike<EnvName, T, Default = T>
     public env(name: EnvName): this {
         this.envName = name;
         return this;
-    }
-
-    /** dotenv-style description of the variable */
-    public describe(key?: string): string {
-        let k = this.envName ?? key;
-        const binding = `${k}=${this.forceMetavar ?? this.getMetavar()}`;
-        if (this._description !== undefined) {
-            return `# ${this._description}\n${binding}`;
-        } else {
-            return binding;
-        }
     }
 }
 
@@ -141,6 +131,16 @@ export abstract class Variable<T> extends VariableLike<KnownEnvName, T, T> {
         this.forceMetavar = this.forceMetavar;
         return result;
     }
+
+    /** dotenv-style description of the variable */
+    public describeVariable(envName: string): string {
+        const binding = `${envName}=${this.forceMetavar ?? this.getMetavar()}`;
+        if (this._description !== undefined) {
+            return `# ${this._description}\n${binding}`;
+        } else {
+            return binding;
+        }
+    }
 }
 
 export class OptionalVariable<T, V extends VariableLike<KnownEnvName, T, any>>
@@ -193,8 +193,8 @@ export class OptionalVariable<T, V extends VariableLike<KnownEnvName, T, any>>
     public default(defaultValue: undefined): this {
         return this;
     }
-    public describe(key?: string): string {
-        return `# ${this.variable.describe(key)}`;
+    public describeVariable(envName: string): string {
+        return `# ${this.variable.describeVariable(envName)}`;
     }
 }
 
@@ -260,14 +260,18 @@ export class ObjectParser<T> extends VariableLike<never, T> {
         }
         return final.value;
     }
-    public describe(_key?: string, prepend?: string): string {
+    public describeVariable(envName?: unknown, prepend?: string): string {
         const header = this._description ? `# ${this._description}` : undefined;
-        const fields = Object.keys(this.fields).map((k) =>
-            this.fields[k as keyof T].describe(k),
-        );
+        const fields = Object.keys(this.fields).map((k) => {
+            const parser = this.fields[k as keyof T];
+            return parser.describeVariable(parser.envName ?? k);
+        });
         return [header, prepend, ...fields]
             .filter((x) => x !== undefined)
             .join('\n');
+    }
+    public describe(): string {
+        return this.describeVariable();
     }
     public logger(logger: ILogger): this {
         this._logger = logger;
@@ -339,9 +343,9 @@ export class UntaggedUnionParser<T> extends VariableLike<
             envName: void 0,
         });
     }
-    describe(key?: string): string {
+    describeVariable(envName: string): string {
         return describeOptions(
-            this.envName ?? key ?? '',
+            envName,
             this._options,
             toUndefined(this.defaultValue),
         );
@@ -412,9 +416,9 @@ export class TaggedUnionParser<Tag extends string, T> extends VariableLike<
             return result;
         }
     }
-    describe(contextKey?: string): string {
+    describeVariable(envName: string): string {
         return describeOptions(
-            this.envName ?? contextKey ?? '',
+            envName,
             this._options,
             toUndefined(this.defaultValue),
         );
@@ -436,7 +440,7 @@ function describeOptions<T>(
     return Object.keys(options)
         .map((k) => {
             const option = options[k as keyof T];
-            const desc = option.describe(k, `${key}=${k}`);
+            const desc = option.describeVariable(void 0, `${key}=${k}`);
             if (k === defaultOption) {
                 return desc;
             } else {
