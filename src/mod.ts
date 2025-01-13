@@ -1,5 +1,6 @@
 import { ILogger, ConsoleLogger, logMissingVariable } from './logger';
 import { fromOption, Option, toUndefined } from './option';
+import { ParseResult, ParseResults } from './result';
 
 export type State = {
     value: string;
@@ -14,13 +15,6 @@ export type Context<Env> = {
 };
 
 export type KnownEnvName = string;
-
-export type ParseResult<T> =
-    | { type: 'success'; value: T }
-    | { type: 'missing' }
-    | { type: 'error'; error: Error };
-
-export type ParseResults<T> = { [K in keyof T]: ParseResult<T[K]> };
 
 export interface Parser<Env, T> {
     envName?: Env;
@@ -78,7 +72,7 @@ export abstract class Variable<T> extends VariableLike<KnownEnvName, T, T> {
         if (state === undefined) {
             if (this.defaultValue.tag === 'none') {
                 logMissingVariable(ctx.logger, envName);
-                return { type: 'missing' };
+                return { success: false, error: new Error('missing environment variable') };
             } else {
                 const value: T = this.defaultValue.value;
                 let strValue;
@@ -92,7 +86,7 @@ export abstract class Variable<T> extends VariableLike<KnownEnvName, T, T> {
                     strValue = value.toString();
                 }
                 ctx.logger.info(`${envName}=${strValue} (default)`);
-                return { type: 'success', value };
+                return { success: true, data: value };
             }
         } else {
             state.used = true;
@@ -103,13 +97,13 @@ export abstract class Variable<T> extends VariableLike<KnownEnvName, T, T> {
                 } else {
                     ctx.logger.info(`${envName}=${result}`);
                 }
-                return { type: 'success', value: result };
+                return { success: true, data: result };
             } catch (error) {
                 if (error instanceof Error) {
                     ctx.logger.error(
                         `${envName}=${state.value} ERROR: ${error.message}`,
                     );
-                    return { type: 'error', error };
+                    return { success: false, error };
                 }
                 throw error;
             }
@@ -164,7 +158,7 @@ export class OptionalVariable<T, V extends VariableLike<KnownEnvName, T, any>>
         }
         if (ctx.values[envName] === undefined) {
             ctx.logger.info(`${envName}=undefined (default)`);
-            return { type: 'success', value: undefined };
+            return { success: true, data: undefined };
         }
         return this.variable.parseContext(ctx);
     }
@@ -236,7 +230,7 @@ export class ObjectParser<T> extends VariableLike<never, T> {
                 envValue: ctx.values[envName]?.value,
             });
         }
-        return fromParseResults(result);
+        return ParseResults.combine(result);
     }
     public safeParse(input?: Record<string, string>): ParseResult<T> {
         const raw = input ?? process.env;
@@ -256,12 +250,11 @@ export class ObjectParser<T> extends VariableLike<never, T> {
     }
     public parse(input?: Record<string, string>): T {
         const final = this.safeParse(input);
-        if (final.type === 'error') {
+        if (final.success) {
+            return final.data;
+        } else {
             throw final.error;
-        } else if (final.type === 'missing') {
-            throw new Error('missing required variables');
         }
-        return final.value;
     }
     public describeVariable(envName?: unknown, prepend?: string): string {
         const header = this._description ? `# ${this._description}` : undefined;
@@ -286,31 +279,6 @@ export class ObjectParser<T> extends VariableLike<never, T> {
     }
 }
 
-function fromParseResults<T>(partial: ParseResults<T>): ParseResult<T> {
-    // report an error with a list of missing variables
-    const missing = Object.keys(partial).filter(
-        (key) => partial[key as keyof T].type !== 'success',
-    );
-    if (missing.length > 0) {
-        return {
-            type: 'error',
-            error: new Error(
-                `Unable to fill the following fields: ${missing.join(', ')}`,
-            ),
-        };
-    }
-    // combine the results into a single object
-    const result: Partial<T> = {};
-    for (const key in partial) {
-        const k = key as keyof T;
-        const value = partial[k];
-        if (value.type === 'success') {
-            result[k] = value.value;
-        }
-    }
-    return { type: 'success', value: result as T };
-}
-
 export type TaggedUnion<Tag extends string, T> = {
     [K in keyof T]: { [P in Tag]: K } & T[K];
 }[keyof T];
@@ -331,7 +299,7 @@ export class UntaggedUnionParser<T> extends VariableLike<
         const value = ctx.envValue ?? toUndefined(this.defaultValue);
         if (value === undefined) {
             logMissingVariable(ctx.logger, ctx.envName);
-            return { type: 'missing' };
+            return ParseResult.missingVariable();
         }
         const parser = this._options[value as keyof T];
         if (parser === undefined) {
@@ -339,7 +307,7 @@ export class UntaggedUnionParser<T> extends VariableLike<
                 `it must be ${serialComma(Object.keys(this._options))}, but got ${value}`,
             );
             ctx.logger.error(`${ctx.envName}=${value} ERROR: ${error.message}`);
-            return { type: 'error', error };
+            return { success: false, error };
         }
         return parser.parseContext({
             ...ctx,
@@ -386,7 +354,7 @@ export class TaggedUnionParser<Tag extends string, T> extends VariableLike<
         const value = ctx.envValue ?? toUndefined(this.defaultValue);
         if (value === undefined) {
             logMissingVariable(ctx.logger, ctx.envName);
-            return { type: 'missing' };
+            return ParseResult.missingVariable();
         }
         const parser = this._options[value as keyof T];
         if (parser === undefined) {
@@ -394,7 +362,7 @@ export class TaggedUnionParser<Tag extends string, T> extends VariableLike<
                 `it must be ${serialComma(Object.keys(this._options))}, but got ${value}`,
             );
             ctx.logger.error(`${ctx.envName}=${value} ERROR: ${error.message}`);
-            return { type: 'error', error };
+            return { success: false, error };
         }
         const isDefault = ctx.envValue === undefined;
         if (isDefault) {
@@ -407,12 +375,12 @@ export class TaggedUnionParser<Tag extends string, T> extends VariableLike<
             envName: void 0,
         });
         const tag = { [this.tag]: value } as { [P in Tag]: keyof T };
-        if (result.type === 'success') {
+        if (result.success) {
             return {
-                type: 'success',
-                value: {
+                success: true,
+                data: {
                     ...tag,
-                    ...result.value,
+                    ...result.data,
                 },
             };
         } else {
