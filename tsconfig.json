@@ -6,6 +6,6 @@
         "allowSyntheticDefaultImports": true,
         "declaration": true
     },
-    "include": ["src/**/*.ts"],
+    "include": ["src/**/*.ts", "tools/**/*.ts"],
     "exclude": ["node_modules"]
 }
