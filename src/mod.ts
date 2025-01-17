@@ -218,6 +218,10 @@ export type ParsersOf<EnvName, T> = {
 export class ObjectParser<T> extends VariableLike<never, T> {
     readonly _T!: T;
     private _logger: ILogger;
+    private _reportUnused: boolean = false;
+    private _rejectUnused: boolean = false;
+    private assumedPrefices: string[] = [];
+    private ignoredNames: string[] = [];
     public constructor(public fields: ParsersOf<KnownEnvName, T>) {
         super();
         this._logger = new ConsoleLogger();
@@ -244,12 +248,38 @@ export class ObjectParser<T> extends VariableLike<never, T> {
             }
             env[key] = { value, used: false };
         }
-        return this.parseContext({
+        const result = this.parseContext({
             values: env,
             logger: this._logger,
             envName: void 0,
             envValue: undefined,
         });
+        const unused = [];
+        if (this._reportUnused || this._rejectUnused) {
+            for (const key in env) {
+                if (!env[key].used) {
+                    if (!this.assumedPrefices.some((prefix) => key.startsWith(prefix))) {
+                        continue;
+                    }
+                    if (this.ignoredNames.includes(key)) {
+                        continue;
+                    }
+                    unused.push(key);
+                    this._logger.info(`${key} is unused`);
+                }
+            }
+        }
+        if (this._rejectUnused && unused.length > 0) {
+            return {
+                success: false,
+                error: new Error(`Unused variables: ${unused.join(', ')}`, {
+                    cause: {
+                        unused,
+                    }
+                }),
+            };
+        }
+        return result;
     }
     public parse(input?: Record<string, string>): T {
         const final = this.safeParse(input);
@@ -279,6 +309,22 @@ export class ObjectParser<T> extends VariableLike<never, T> {
     public getMetavar(): string {
         // this should never be called
         return 'object';
+    }
+    public assumePrefix(...prefixes: string[]): this {
+        this.assumedPrefices.push(...prefixes);
+        return this;
+    }
+    public ignoreUnused(names: string[]){
+        this.ignoredNames.push(...names);
+        return this;
+    }
+    public reportUnused(): this {
+        this._reportUnused = true;
+        return this;
+    }
+    public rejectUnused(): this {
+        this._rejectUnused = true;
+        return this;
     }
 }
 

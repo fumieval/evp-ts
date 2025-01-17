@@ -147,6 +147,21 @@ const result = parser.parse();
 logger.level = result.LOG_LEVEL;
 ```
 
+## Detecting unused environment variables
+
+Typos in environment variable names can lead to bugs that are difficult to detect, especially when the intended variable is optional.
+
+To detect unused environment variables, call `parser.reportUnused()` or `parser.rejectUnused()`.
+
+```typescript
+const result = parser.logger(logger).safeParse({
+    APP_BAR: 'bar', // logged as unused
+    HOME: '/home/user', // ignored
+}).assumePrefix('APP_').rejectUnused();
+```
+
+In practice, you may want to prefix the environment variables you intend to parse, then set `assumePrefix` to specify the prefix (or prefices). When an environment variable with the given prefix is not used, it is considered unused and will be logged.
+
 ## License
 
 evp-ts is open-source software licensed under the [MIT License](https://opensource.org/licenses/MIT).

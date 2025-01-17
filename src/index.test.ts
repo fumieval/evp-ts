@@ -489,4 +489,22 @@ describe('EVP', () => {
         } catch (error) {}
         expect(winstonSpy.mock.calls).toMatchSnapshot();
     });
+
+    test('reject unused variables', () => {
+        const logger = new TestLogger();
+        const result = EVP.object({
+            APP_FOO: EVP.string(),
+        })
+            .assumePrefix('APP_')
+            .rejectUnused()
+            .logger(logger)
+            .safeParse({
+                APP_BAR: 'bar',
+                HOME: '/home/user',
+            });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.message).toEqual('Unused variables: APP_BAR');
+        }
+    });
 });
