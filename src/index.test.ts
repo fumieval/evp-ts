@@ -37,7 +37,9 @@ const parser = EVP.object({
             port: EVP.string().env('MYSQL_PORT').default('3306'),
             database: EVP.string().env('MYSQL_DATABASE'),
         }),
-    }).tag('type').default('dummy'),
+    })
+        .tag('type')
+        .default('dummy'),
     MODE: EVP.enum(['development', 'production']),
 });
 
@@ -74,10 +76,10 @@ describe('EVP', () => {
             'DEBUG_MODE=false (default)',
             'MYSQL_HOST=127.0.0.1',
             'MYSQL_PORT=3306 (default)',
-            "OPTIONAL=undefined (default)",
-            "DATA_SOURCE=file",
-            "DATA_PATH=/path/to/data",
-            "MODE=development",
+            'OPTIONAL=undefined (default)',
+            'DATA_SOURCE=file',
+            'DATA_PATH=/path/to/data',
+            'MODE=development',
         ]);
     });
     test('reject invalid decimals', () => {
@@ -98,9 +100,9 @@ describe('EVP', () => {
                 'DEBUG_MODE=false (default)',
                 'MYSQL_HOST=localhost (default)',
                 'MYSQL_PORT=3306 (default)',
-                "OPTIONAL=undefined (default)",
-                "DATA_SOURCE=dummy",
-                "MODE=development",
+                'OPTIONAL=undefined (default)',
+                'DATA_SOURCE=dummy',
+                'MODE=development',
             ]);
         }
     });
@@ -121,9 +123,9 @@ describe('EVP', () => {
                 'DEBUG_MODE=false (default)',
                 'MYSQL_HOST=localhost (default)',
                 'MYSQL_PORT=3306 (default)',
-                "OPTIONAL=undefined (default)",
-                "DATA_SOURCE=dummy",
-                "MODE=development",
+                'OPTIONAL=undefined (default)',
+                'DATA_SOURCE=dummy',
+                'MODE=development',
             ]);
         }
     });
@@ -137,44 +139,42 @@ describe('EVP', () => {
                 PORT: 'blah',
             });
         } catch (_error) {
-            expect(logger.logs).toEqual([
-                'PORT=blah ERROR: invalid number',
-            ]);
+            expect(logger.logs).toEqual(['PORT=blah ERROR: invalid number']);
         }
     }),
-    test('parse boolean values', () => {
-        const logger = new TestLogger();
-        const parser = EVP.object({
-            A: EVP.boolean(),
-            B: EVP.boolean(),
-            C: EVP.boolean(),
-            D: EVP.boolean(),
-            E: EVP.boolean(),
-            F: EVP.boolean(),
-            G: EVP.boolean(),
-            H: EVP.boolean(),
+        test('parse boolean values', () => {
+            const logger = new TestLogger();
+            const parser = EVP.object({
+                A: EVP.boolean(),
+                B: EVP.boolean(),
+                C: EVP.boolean(),
+                D: EVP.boolean(),
+                E: EVP.boolean(),
+                F: EVP.boolean(),
+                G: EVP.boolean(),
+                H: EVP.boolean(),
+            });
+            const config = parser.logger(logger).parse({
+                A: 'true',
+                B: 'false',
+                C: '1',
+                D: '0',
+                E: 'yes',
+                F: 'no',
+                G: 'on',
+                H: 'off',
+            });
+            expect(config).toEqual({
+                A: true,
+                B: false,
+                C: true,
+                D: false,
+                E: true,
+                F: false,
+                G: true,
+                H: false,
+            });
         });
-        const config = parser.logger(logger).parse({
-            A: 'true',
-            B: 'false',
-            C: '1',
-            D: '0',
-            E: 'yes',
-            F: 'no',
-            G: 'on',
-            H: 'off',
-        });
-        expect(config).toEqual({
-            A: true,
-            B: false,
-            C: true,
-            D: false,
-            E: true,
-            F: false,
-            G: true,
-            H: false,
-        });
-    });
     test('reject invalid boolean values', () => {
         const logger = new TestLogger();
         try {
@@ -185,9 +185,7 @@ describe('EVP', () => {
                 A: 'blah',
             });
         } catch (_error) {
-            expect(logger.logs).toEqual([
-                'A=blah ERROR: invalid boolean',
-            ]);
+            expect(logger.logs).toEqual(['A=blah ERROR: invalid boolean']);
         }
     });
     test('metavariables', () => {
@@ -195,7 +193,7 @@ describe('EVP', () => {
         const parser = EVP.object({
             NUM: EVP.number(),
             HOST: EVP.string().default('localhost'),
-            PORT: EVP.number().default(8080), 
+            PORT: EVP.number().default(8080),
             DB_HOST: EVP.string().metavar('<host>'),
             DB_PORT: EVP.number().metavar('<port>'),
             DEBUG_MODE: EVP.boolean().default(false),
@@ -217,7 +215,7 @@ describe('EVP', () => {
         } catch (_error) {
             expect(logger.logs).toEqual([
                 'MODE=blah ERROR: it must be development or production, but got blah',
-                "THEME=blah ERROR: it must be light, dark, or auto, but got blah",
+                'THEME=blah ERROR: it must be light, dark, or auto, but got blah',
             ]);
         }
     });
@@ -388,13 +386,17 @@ describe('EVP', () => {
     test('describe object', () => {
         const parser = EVP.object({
             FOO: EVP.string().description('foo'),
-        }).description("foo parser").describe();
+        })
+            .description('foo parser')
+            .describe();
         expect(parser).toMatchSnapshot();
-    })
+    });
 
     test('map', () => {
         const parser = EVP.object({
-            FOO: EVP.string().map((value) => value.toUpperCase()).default('foo'),
+            FOO: EVP.string()
+                .map((value) => value.toUpperCase())
+                .default('foo'),
         });
         const config = parser.parse({ FOO: 'bar' });
         expect(config).toEqual({ FOO: 'BAR' });
@@ -414,11 +416,13 @@ describe('EVP', () => {
             BAR: undefined,
         });
         expect(parser.describe()).toMatchSnapshot();
-    })
+    });
 
     test('throwing error', () => {
         const parser = EVP.object({
-            FOO: EVP.string().map(() => { throw new Error('error') }),
+            FOO: EVP.string().map(() => {
+                throw new Error('error');
+            }),
         });
         try {
             parser.parse({ FOO: 'foo' });
@@ -426,13 +430,17 @@ describe('EVP', () => {
             if (!(error instanceof Error)) {
                 throw error;
             }
-            expect(error.message).toEqual('Unable to fill the following fields: FOO');
+            expect(error.message).toEqual(
+                'Unable to fill the following fields: FOO',
+            );
         }
     });
 
     test('throwing non-Error', () => {
         const parser = EVP.object({
-            FOO: EVP.string().map(() => { throw 'error' }),
+            FOO: EVP.string().map(() => {
+                throw 'error';
+            }),
         });
         try {
             parser.parse({ FOO: 'foo' });
@@ -459,9 +467,11 @@ describe('EVP', () => {
         expect(parser.describe()).toMatchSnapshot();
     });
 
-    test("winston compatibility", () => {
+    test('winston compatibility', () => {
         const parser = EVP.object({
-            LOG_LEVEL: EVP.enum(['error', 'warn', 'info', 'debug']).default('info'),
+            LOG_LEVEL: EVP.enum(['error', 'warn', 'info', 'debug']).default(
+                'info',
+            ),
             FOO: EVP.enum(['foo', 'bar', 'baz']),
         });
         const logger = winston.createLogger({
@@ -476,8 +486,7 @@ describe('EVP', () => {
         const winstonSpy = vi.spyOn(logger, 'log');
         try {
             parser.logger(logger).parse({});
-        } catch (error) {
-        }
+        } catch (error) {}
         expect(winstonSpy.mock.calls).toMatchSnapshot();
     });
 });
