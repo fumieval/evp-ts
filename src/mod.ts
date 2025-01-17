@@ -72,7 +72,10 @@ export abstract class Variable<T> extends VariableLike<KnownEnvName, T, T> {
         if (state === undefined) {
             if (this.defaultValue.tag === 'none') {
                 logMissingVariable(ctx.logger, envName);
-                return { success: false, error: new Error('missing environment variable') };
+                return {
+                    success: false,
+                    error: new Error('missing environment variable'),
+                };
             } else {
                 const value: T = this.defaultValue.value;
                 let strValue;
