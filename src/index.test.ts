@@ -71,7 +71,7 @@ describe('EVP', () => {
         });
         expect(logger.logs).toEqual([
             'API_ENDPOINT=https://example.com',
-            'API_TOKEN=<REDACTED>',
+            'API_TOKEN=<SHA256:2bb80d53>',
             'HTTP_PORT=8080',
             'DEBUG_MODE=false (default)',
             'MYSQL_HOST=127.0.0.1',
@@ -95,7 +95,7 @@ describe('EVP', () => {
         } catch (_error) {
             expect(logger.logs).toEqual([
                 'API_ENDPOINT=https://example.com',
-                'API_TOKEN=<REDACTED>',
+                'API_TOKEN=<SHA256:2bb80d53>',
                 'HTTP_PORT=808o ERROR: invalid decimal',
                 'DEBUG_MODE=false (default)',
                 'MYSQL_HOST=localhost (default)',
@@ -118,7 +118,7 @@ describe('EVP', () => {
         } catch (_error) {
             expect(logger.logs).toEqual([
                 'API_ENDPOINT=https://example.com',
-                'API_TOKEN=<REDACTED>',
+                'API_TOKEN=<SHA256:2bb80d53>',
                 'HTTP_PORT=undefined ERROR: missing environment variable',
                 'DEBUG_MODE=false (default)',
                 'MYSQL_HOST=localhost (default)',

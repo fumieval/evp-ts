@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { ILogger, ConsoleLogger, logMissingVariable } from './logger';
 import { fromOption, Option, toUndefined } from './option';
 import { ParseResult, ParseResults } from './result';
@@ -64,6 +65,16 @@ export abstract class VariableLike<EnvName, T, Default = T>
     }
 }
 
+function hashSecret(value: string): string {
+    if (value === '') {
+        return '<empty string>';
+    }
+    const hash = createHash('sha256');
+    hash.update(value);
+    const digest = hash.digest('hex').slice(0, 8);
+    return `<SHA256:${digest}>`;
+}
+
 export abstract class Variable<T> extends VariableLike<KnownEnvName, T, T> {
     abstract parse(value: string): T;
     public parseContext(ctx: Context<KnownEnvName>): ParseResult<T> {
@@ -79,12 +90,12 @@ export abstract class Variable<T> extends VariableLike<KnownEnvName, T, T> {
             } else {
                 const value: T = this.defaultValue.value;
                 let strValue;
-                if (this.isSecret) {
-                    strValue = '<REDACTED>';
-                } else if (value === null) {
+                if (value === null) {
                     strValue = 'null';
                 } else if (value === undefined) {
                     strValue = 'undefined';
+                } else if (this.isSecret) {
+                    strValue = hashSecret(value.toString());
                 } else {
                     strValue = value.toString();
                 }
@@ -96,7 +107,7 @@ export abstract class Variable<T> extends VariableLike<KnownEnvName, T, T> {
             try {
                 const result = this.parse(state.value);
                 if (this.isSecret) {
-                    ctx.logger.info(`${envName}=<REDACTED>`);
+                    ctx.logger.info(`${envName}=${hashSecret(state.value)}`);
                 } else {
                     ctx.logger.info(`${envName}=${result}`);
                 }

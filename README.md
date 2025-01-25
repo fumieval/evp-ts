@@ -37,14 +37,14 @@ console.log(result);
 
 ```
 [EVP] API_ENDPOINT=https://example.com
-[EVP] API_TOKEN=<REDACTED>
+[EVP] API_TOKEN=<SHA256:2bb80d53>
 [EVP] HTTP_PORT=8080
 [EVP] DEBUG_MODE=false (default)
 [EVP] MYSQL_HOST=localhost (default)
 [EVP] MYSQL_PORT=3306 (default)
 {
   API_ENDPOINT: 'https://api.example.com',
-  API_TOKEN: '00000000-0000-0000-0000-000000000000',
+  API_TOKEN: 'secret',
   HTTP_PORT: 3000,
   DEBUG_MODE: false,
   mysql: { host: 'localhost', port: '3306', user: 'root' }
@@ -69,7 +69,7 @@ evp-ts supports the following types for parsing environment variables:
 evp-ts provides additional options for configuring the behavior of environment variable parsing:
 
 - `.default(value)`: Specifies a default value to use if the environment variable is not set.
-- `.secret()`: Marks the environment variable as sensitive, hiding its value from logs.
+- `.secret()`: Logs its SHA-256 hash instead of the actual value.
 - `.optional()`: Marks the environment variable as optional, allowing it to be missing without causing an error.
 - `.env(name)`: Specifies the name of the environment variable to use for parsing.
 ## Generating Help Text
