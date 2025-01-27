@@ -8,12 +8,17 @@ This package is inspired by [zod](https://zod.dev/) and [EVP](https://github.com
 
 ## Features
 
+- 🐾 Low dependency footprint
 - 🧹 Clutter-free code
-- 🌳 Supports nested structure
+- 🪺 Supports nested structure
 - 🧩 Well-typed interface
+- ⚗️ Derive types from the parser
 - 📝 Explicit logging of parsed environment variables
 - 🔒 Hiding sensitive values (e.g. API keys) from logs
-- 🛡️ Graceful handling of missing or invalid environment variables
+- 🛡️ Handle errors comprehensively
+- 📜 Generate dotenv-style help text from the parser
+- 🎭 Dynamically toggle between different sets of environment variables (discriminated unions)
+- 🗑️ Detect unused environment variables
 
 ## Usage
 
@@ -53,7 +58,9 @@ console.log(result);
 
 In this example, we define a parser using the `EVP.object()` function, which takes an object describing the structure and types of the environment variables. Each key in the object represents an environment variable, and the corresponding value defines its type and any additional options (e.g. default values, secret flag).
 
-The `exec()` method is then called on the parser to parse the environment variables and return an object with the parsed values. If any required environment variables are missing or have invalid values, evp-ts will log an error message but continue parsing the remaining variables to provide a comprehensive error report.
+You can infer the type of the result using the `EVP.TypeOf<typeof parser>`, rather than defining it manually.
+
+The `parse()` method is then called on the parser to parse the environment variables and return an object with the parsed values. If any required environment variables are missing or have invalid values, evp-ts will log an error message but continue parsing the remaining variables to provide a comprehensive error report.
 
 ## Supported Types
 
