@@ -34,7 +34,7 @@ const parser = EVP.object({
     DEBUG_MODE: EVP.boolean().default(false),
 });
 
-type Config = EVP.TypeOf<typeof parser>;
+type Config = EVP.infer<typeof parser>;
 const result: Config = parser.parse();
 
 console.log(result);
@@ -58,7 +58,7 @@ console.log(result);
 
 In this example, we define a parser using the `EVP.object()` function, which takes an object describing the structure and types of the environment variables. Each key in the object represents an environment variable, and the corresponding value defines its type and any additional options (e.g. default values, secret flag).
 
-You can infer the type of the result using the `EVP.TypeOf<typeof parser>`, rather than defining it manually.
+You can infer the type of the result using the `EVP.infer<typeof parser>`, rather than defining it manually.
 
 The `parse()` method is then called on the parser to parse the environment variables and return an object with the parsed values. If any required environment variables are missing or have invalid values, evp-ts will log an error message but continue parsing the remaining variables to provide a comprehensive error report.
 

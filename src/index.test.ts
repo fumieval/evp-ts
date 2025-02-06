@@ -43,7 +43,7 @@ const parser = EVP.object({
     MODE: EVP.enum(['development', 'production']),
 });
 
-type Config = EVP.TypeOf<typeof parser>;
+type Config = EVP.infer<typeof parser>;
 
 describe('EVP', () => {
     test('describe', () => {

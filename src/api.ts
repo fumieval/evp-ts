@@ -29,6 +29,8 @@ export { ILogger, ConsoleLogger } from './logger';
  */
 export type TypeOf<T extends ObjectParser<unknown>> = T['_T'];
 
+export { TypeOf as infer };
+
 /**
  * Parser for a single environment variable
  * @param name - The name of the variable (optional)
