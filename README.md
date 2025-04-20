@@ -6,6 +6,19 @@ evp-ts is a lightweight and easy-to-use library for parsing environment variable
 
 This package is inspired by [zod](https://zod.dev/) and [EVP](https://github.com/fumieval/EVP), an environment variable parser library for Haskell.
 
+## Table of Contents
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Supported Types](#supported-types)
+- [Modifiers](#modifiers)
+- [Error Handling](#error-handling)
+- [Generating Help Text](#generating-help-text)
+- [Discriminated Unions](#discriminated-unions)
+- [Customising the Logger](#customising-the-logger)
+- [Detecting Unused Variables](#detecting-unused-environment-variables)
+- [License](#license)
+
 ## Features
 
 - 🐾 Low dependency footprint
@@ -19,6 +32,22 @@ This package is inspired by [zod](https://zod.dev/) and [EVP](https://github.com
 - 📜 Generate dotenv-style help text from the parser
 - 🎭 Dynamically toggle between different sets of environment variables (discriminated unions)
 - 🗑️ Detect unused environment variables
+
+## Installation
+
+```bash
+# Using npm
+npm install evp-ts
+
+# Using yarn
+yarn add evp-ts
+
+# Using pnpm
+pnpm add evp-ts
+
+# Using bun
+bun add evp-ts
+```
 
 ## Usage
 
@@ -40,27 +69,19 @@ const result: Config = parser.parse();
 console.log(result);
 ```
 
+Example output:
 ```
 [EVP] API_ENDPOINT=https://example.com
-[EVP] API_TOKEN=<SHA256:2bb80d53>
+[EVP] API_TOKEN=<SHA256:fcf730b6>
 [EVP] HTTP_PORT=8080
 [EVP] DEBUG_MODE=false (default)
-[EVP] MYSQL_HOST=localhost (default)
-[EVP] MYSQL_PORT=3306 (default)
 {
-  API_ENDPOINT: 'https://api.example.com',
-  API_TOKEN: 'secret',
-  HTTP_PORT: 3000,
-  DEBUG_MODE: false,
-  mysql: { host: 'localhost', port: '3306', user: 'root' }
+  API_ENDPOINT: "https://example.com",
+  API_TOKEN: "secret123",
+  HTTP_PORT: 8080,
+  DEBUG_MODE: false
 }
 ```
-
-In this example, we define a parser using the `EVP.object()` function, which takes an object describing the structure and types of the environment variables. Each key in the object represents an environment variable, and the corresponding value defines its type and any additional options (e.g. default values, secret flag).
-
-You can infer the type of the result using the `EVP.infer<typeof parser>`, rather than defining it manually.
-
-The `parse()` method is then called on the parser to parse the environment variables and return an object with the parsed values. If any required environment variables are missing or have invalid values, evp-ts will log an error message but continue parsing the remaining variables to provide a comprehensive error report.
 
 ## Supported Types
 
@@ -70,6 +91,7 @@ evp-ts supports the following types for parsing environment variables:
 - `EVP.number()`: Parses the value as a number.
 - `EVP.boolean()`: Parses the value as a boolean (`true`, `yes`, and `1` becomes `true` and `false`, `no`, `0` becomes `false`).
 - `EVP.object()`: Defines a nested object structure for grouping related environment variables.
+- `EVP.enum()`: Validates that the value matches one of the specified options.
 
 ## Modifiers
 
@@ -79,6 +101,38 @@ evp-ts provides additional options for configuring the behavior of environment v
 - `.secret()`: Logs its SHA-256 hash instead of the actual value.
 - `.optional()`: Marks the environment variable as optional, allowing it to be missing without causing an error.
 - `.env(name)`: Specifies the name of the environment variable to use for parsing.
+- `.description(text)`: Adds a description that appears in the help text.
+- `.metavar(name)`: Customizes the placeholder shown in help text.
+
+## Error Handling
+
+evp-ts provides error handling through the `safeParse` method:
+
+```typescript
+import { EVP } from 'evp-ts';
+
+const parser = EVP.object({
+    PORT: EVP.number(),
+    API_KEY: EVP.string().secret(),
+});
+
+const result = parser.safeParse();
+if (!result.success) {
+    console.error('Configuration error:', result.error.message);
+    process.exit(1);
+}
+
+// Use the validated config
+const config = result.data;
+```
+
+Example error output:
+```
+[EVP] PORT=invalid_port ERROR: invalid number
+[EVP] API_KEY=undefined ERROR: missing environment variable
+Configuration error: Unable to fill the following fields: PORT, API_KEY
+```
+
 ## Generating Help Text
 
 `parser.describe()` generates a dotenv-style help text from the parser.
@@ -98,6 +152,7 @@ const parser = EVP.object({
 console.log(parser.describe());
 ```
 
+Output:
 ```
 # The base URL of the API
 API_ENDPOINT=<string>
@@ -109,12 +164,7 @@ DEBUG_MODE=false
 
 ## Discriminated Unions
 
-In the following example, the `DATABASE_BACKEND` environment variable is used to switch between different sets of environment variables for different database backends.
-
-The `EVP.union()` function is used to define a union of different parsers.
-The `options()` method is then used to define a set of parsers for each possible value of `DATABASE_BACKEND`.
-The field specified by the `discriminator()` contains the value of `DATABASE_BACKEND`.
-If `DATABASE_BACKEND` is not set, it will use the default option specified by the `.default()` method.
+The `EVP.union()` function allows you to switch between different sets of environment variables based on a discriminator value:
 
 ```typescript
 import { EVP } from 'evp-ts';
@@ -128,24 +178,52 @@ const parser = EVP.object({
         sqlite: EVP.object({
             path: EVP.string().env('SQLITE_PATH'),
         }),
-    }).tag('backend');
-    // .default('sqlite'),
+    }).tag('backend')
 });
-
-console.log(parser.describe());
-console.log(parser.parse());
 ```
 
-## Customising the logger
+MySQL configuration output:
+```
+[EVP] DATABASE_BACKEND=mysql
+[EVP] MYSQL_HOST=localhost (default)
+[EVP] MYSQL_PORT=3306 (default)
+{
+  DATABASE_BACKEND: {
+    backend: "mysql",
+    host: "localhost",
+    port: 3306
+  }
+}
+```
 
-By default, evp-ts uses `console` to log messages.
-You can attach a custom logger, such as [winston](https://www.npmjs.com/package/winston)'s to the parser using the `.logger()` method.
+SQLite configuration output:
+```
+[EVP] DATABASE_BACKEND=sqlite
+[EVP] SQLITE_PATH=/path/to/db.sqlite
+{
+  DATABASE_BACKEND: {
+    backend: "sqlite",
+    path: "/path/to/db.sqlite"
+  }
+}
+```
+
+## Customising the Logger
+
+You can use either the default console logger or a custom logger like Winston:
 
 ```typescript
 import { EVP } from 'evp-ts';
 import * as winston from 'winston';
 
-const logger = winston.createLogger();
+const logger = winston.createLogger({
+    transports: [
+        new winston.transports.Console({
+            format: winston.format.simple()
+        })
+    ]
+});
+
 const parser = EVP.object({
     LOG_LEVEL: EVP.enum(['error', 'warn', 'info', 'debug']).default('info'),
 }).logger(logger);
@@ -154,20 +232,36 @@ const result = parser.parse();
 logger.level = result.LOG_LEVEL;
 ```
 
-## Detecting unused environment variables
-
-Typos in environment variable names can lead to bugs that are difficult to detect, especially when the intended variable is optional.
-
-To detect unused environment variables, call `parser.reportUnused()` or `parser.rejectUnused()`.
-
-```typescript
-const result = parser.logger(logger).safeParse({
-    APP_BAR: 'bar', // logged as unused
-    HOME: '/home/user', // ignored
-}).assumePrefix('APP_').rejectUnused();
+Winston logger output:
+```
+info: LOG_LEVEL=debug
 ```
 
-In practice, you may want to prefix the environment variables you intend to parse, then set `assumePrefix` to specify the prefix (or prefices). When an environment variable with the given prefix is not used, it is considered unused and will be logged.
+## Detecting Unused Environment Variables
+
+Typos in environment variable names can lead to bugs that are difficult to detect, especially when the variable is optional.
+To detect unused environment variables, use `assumePrefix()` and `rejectUnused()`:
+
+```typescript
+import { EVP } from 'evp-ts';
+
+const parser = EVP.object({
+    APP_FOO: EVP.string(),
+})
+    .logger(logger)
+    .assumePrefix('APP_')
+    .rejectUnused();
+
+const result = parser.parse({
+    APP_FOO: 'foo',
+    APP_BAR: 'bar', // This will be detected as unused
+    HOME: '/home/user', // This will be ignored (no prefix)
+});
+
+Output:
+```
+error: Unused variables: APP_BAR
+```
 
 ## License
 

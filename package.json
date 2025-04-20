@@ -14,7 +14,10 @@
         "prepare": "npm run build",
         "test": "vitest"
     },
-    "repository": "https://github.com/fumieval/evp-ts",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/fumieval/evp-ts.git"
+    },
     "author": "Fumiaki Kinoshita",
     "license": "MIT",
     "devDependencies": {
@@ -31,10 +34,16 @@
         "winston": "^3.17.0"
     },
     "dependencies": {
+        "evp-ts": "^1.1.1",
         "picocolors": "^1.0.0"
     },
     "files": [
         "dist",
         "src"
-    ]
+    ],
+    "bugs": {
+        "url": "https://github.com/fumieval/evp-ts/issues"
+    },
+    "homepage": "https://github.com/fumieval/evp-ts#readme",
+    "keywords": []
 }
