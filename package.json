@@ -12,7 +12,9 @@
     "scripts": {
         "build": "tsup ./src/index.ts --format esm,cjs --dts",
         "prepare": "npm run build",
-        "test": "vitest"
+        "test": "vitest",
+        "docs": "typedoc",
+        "docs:watch": "typedoc --watch"
     },
     "repository": {
         "type": "git",
