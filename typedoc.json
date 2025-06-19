@@ -1,24 +1,24 @@
 {
-  "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["./src/index.ts"],
-  "out": "./docs",
-  "name": "evp-ts",
-  "readme": "./README.md",
-  "includeVersion": true,
-  "sidebarLinks": {
-    "GitHub": "https://github.com/fumieval/evp-ts",
-    "npm": "https://www.npmjs.com/package/evp-ts"
-  },
-  "navigationLinks": {
-    "GitHub": "https://github.com/fumieval/evp-ts"
-  },
-  "plugin": [],
-  "exclude": ["**/*.test.ts", "**/__snapshots__/**", "**/tools/**"],
-  "skipErrorChecking": true,
-  "excludePrivate": true,
-  "excludeProtected": false,
-  "excludeInternal": true,
-  "disableSources": false,
-  "githubPages": true,
-  "cleanOutputDir": true
+    "$schema": "https://typedoc.org/schema.json",
+    "entryPoints": ["./src/index.ts"],
+    "out": "./docs",
+    "name": "evp-ts",
+    "readme": "./README.md",
+    "includeVersion": true,
+    "sidebarLinks": {
+        "GitHub": "https://github.com/fumieval/evp-ts",
+        "npm": "https://www.npmjs.com/package/evp-ts"
+    },
+    "navigationLinks": {
+        "GitHub": "https://github.com/fumieval/evp-ts"
+    },
+    "plugin": ["typedoc-plugin-merge-modules"],
+    "exclude": ["**/*.test.ts", "**/__snapshots__/**", "**/tools/**"],
+    "skipErrorChecking": true,
+    "excludePrivate": true,
+    "excludeProtected": false,
+    "excludeInternal": true,
+    "disableSources": false,
+    "githubPages": true,
+    "cleanOutputDir": true
 }
