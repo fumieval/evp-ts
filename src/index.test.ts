@@ -262,7 +262,7 @@ describe('EVP', () => {
         }
     });
 
-    test('reject invalid untaggeed union value', () => {
+    test('reject invalid untagged union value', () => {
         const logger = new TestLogger();
         try {
             const parser = EVP.object({

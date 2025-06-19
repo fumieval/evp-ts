@@ -97,8 +97,8 @@ export function emptyObject(): ObjectParser<Record<string, never>> {
 }
 
 /**
- * Create a dynamically-switched parser depending on the value.
- * Use `.options()` to add options, and use `.discriminator()` to specify the field to propagate the switching value.
+ * Create a dynamically-switched parser based on the value.
+ * Use `.options()` to add options, and use `.discriminator()` to specify the field that propagates the switching value.
  * @param name - The name of the switcher
  * @returns An UndiscriminatedUnionParser
  * 

@@ -231,7 +231,7 @@ export class ObjectParser<T> extends VariableLike<never, T> {
     private _logger: ILogger;
     private _reportUnused: boolean = false;
     private _rejectUnused: boolean = false;
-    private assumedPrefices: string[] = [];
+    private assumedPrefixes: string[] = [];
     private ignoredNames: string[] = [];
     public constructor(public fields: ParsersOf<KnownEnvName, T>) {
         super();
@@ -269,7 +269,7 @@ export class ObjectParser<T> extends VariableLike<never, T> {
         if (this._reportUnused || this._rejectUnused) {
             for (const key in env) {
                 if (!env[key].used) {
-                    if (!this.assumedPrefices.some((prefix) => key.startsWith(prefix))) {
+                    if (!this.assumedPrefixes.some((prefix) => key.startsWith(prefix))) {
                         continue;
                     }
                     if (this.ignoredNames.includes(key)) {
@@ -322,10 +322,10 @@ export class ObjectParser<T> extends VariableLike<never, T> {
         return 'object';
     }
     public assumePrefix(...prefixes: string[]): this {
-        this.assumedPrefices.push(...prefixes);
+        this.assumedPrefixes.push(...prefixes);
         return this;
     }
-    public ignoreUnused(names: string[]){
+    public ignoreUnused(names: string[]): this {
         this.ignoredNames.push(...names);
         return this;
     }

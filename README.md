@@ -89,7 +89,7 @@ evp-ts supports the following types for parsing environment variables:
 
 - `EVP.string()`: Get the value as a string.
 - `EVP.number()`: Parses the value as a number.
-- `EVP.boolean()`: Parses the value as a boolean (`true`, `yes`, and `1` becomes `true` and `false`, `no`, `0` becomes `false`).
+- `EVP.boolean()`: Parses the value as a boolean (`true`, `yes`, and `1` are parsed as `true`, while `false`, `no`, and `0` are parsed as `false`).
 - `EVP.object()`: Defines a nested object structure for grouping related environment variables.
 - `EVP.enum()`: Validates that the value matches one of the specified options.
 
