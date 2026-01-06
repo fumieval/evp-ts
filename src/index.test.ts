@@ -507,4 +507,40 @@ describe('EVP', () => {
             expect(result.error.message).toEqual('Unused variables: APP_BAR');
         }
     });
+
+    test('intersection merges object parsers', () => {
+        const a = EVP.object({
+            A: EVP.string(),
+        });
+        const b = EVP.object({
+            B: EVP.number(),
+        });
+        const parser = EVP.intersection(a, b);
+        const config = parser.parse({ A: 'hello', B: '42' });
+        expect(config).toEqual({ A: 'hello', B: 42 });
+    });
+
+    test('intersection recursively merges nested objects', () => {
+        const base = EVP.object({
+            mysql: EVP.object({
+                host: EVP.string().env('MYSQL_HOST'),
+            }),
+        });
+        const extra = EVP.object({
+            mysql: EVP.object({
+                port: EVP.number().env('MYSQL_PORT'),
+            }),
+        });
+        const parser = EVP.intersection(base, extra);
+        const config = parser.parse({ MYSQL_HOST: '127.0.0.1', MYSQL_PORT: '3306' });
+        expect(config).toEqual({ mysql: { host: '127.0.0.1', port: 3306 } });
+    });
+
+    test('intersection rejects duplicate non-object keys', () => {
+        const a = EVP.object({ A: EVP.string() });
+        const b = EVP.object({ A: EVP.number() });
+        expect(() => EVP.intersection(a, b)).toThrowError(
+            'intersection() duplicate key: A',
+        );
+    });
 });

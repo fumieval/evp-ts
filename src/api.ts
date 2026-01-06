@@ -116,6 +116,72 @@ export function union<T>(options: ParsersOf<void, T>): UntaggedUnionParser<T> {
     return new UntaggedUnionParser(options);
 }
 
+type ObjectParserType<P> = P extends ObjectParser<infer T> ? T : never;
+
+type IntersectTypes<T extends readonly unknown[]> = T extends readonly [
+    infer H,
+    ...infer R,
+]
+    ? ObjectParserType<H> & IntersectTypes<R>
+    : unknown;
+
+/**
+ * Combine multiple object parsers into one by intersecting their shapes.
+ *
+ * - Keys that exist in only one parser are kept as-is.
+ * - If the same key exists in multiple parsers and both values are `EVP.object(...)`,
+ *   they are recursively intersected.
+ * - Otherwise, duplicate keys are rejected.
+ *
+ * @example
+ * ```ts
+ * const base = EVP.object({ APP_NAME: EVP.string() });
+ * const db = EVP.object({ DB: EVP.object({ HOST: EVP.string() }) });
+ * const parser = EVP.intersection(base, db);
+ * ```
+ */
+export function intersection<const P extends readonly ObjectParser<any>[]>(
+    ...parsers: P
+): ObjectParser<IntersectTypes<P>> {
+    if (parsers.length === 0) {
+        return emptyObject() as ObjectParser<IntersectTypes<P>>;
+    }
+    let acc: ObjectParser<any> = parsers[0];
+    for (let i = 1; i < parsers.length; i++) {
+        acc = intersectTwoObjectParsers(acc, parsers[i], []);
+    }
+    return acc as ObjectParser<IntersectTypes<P>>;
+}
+
+function intersectTwoObjectParsers<A, B>(
+    left: ObjectParser<A>,
+    right: ObjectParser<B>,
+    path: string[],
+): ObjectParser<A & B> {
+    const merged: Record<string, any> = { ...left.fields };
+    for (const key of Object.keys(right.fields)) {
+        const existing = merged[key];
+        const incoming = (right.fields as Record<string, any>)[key];
+        if (existing === undefined) {
+            merged[key] = incoming;
+            continue;
+        }
+        if (existing instanceof ObjectParser && incoming instanceof ObjectParser) {
+            merged[key] = intersectTwoObjectParsers(
+                existing,
+                incoming,
+                path.concat(key),
+            );
+            continue;
+        }
+        const at = path.length === 0 ? key : `${path.join('.')}.${key}`;
+        throw new Error(`intersection() duplicate key: ${at}`);
+    }
+    const result = new ObjectParser(merged) as ObjectParser<A & B>;
+    result._description = left._description ?? right._description;
+    return result;
+}
+
 function enum_<U extends string, T extends U[]>(values: T): Enum<U, T> {
     return new Enum(values);
 }
